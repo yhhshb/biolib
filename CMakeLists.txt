@@ -38,16 +38,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(argparse)
 
 set(BIOLIB_SOURCES
-  src/build.cpp
-  src/diff.cpp
-  src/correct.cpp
-  src/dump.cpp
-  src/bias.cpp
   src/io.cpp
   src/hash.cpp
-  src/MurmurHash3.cpp
-  src/IBLT.cpp
-  src/utils.cpp
+  bundled/MurmurHash3.cpp
 )
 
 # Tests------------------------------------------------------------------------
@@ -63,5 +56,5 @@ if (MAKE_TESTS)
   add_executable(rsg tests/random_sequence_generation.cpp)
   target_link_libraries(rsg argparse)
 
-  add_executable(traits_examples tests/traits_examples.cpp src/MurmurHash3.cpp)
+  add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)
 endif()

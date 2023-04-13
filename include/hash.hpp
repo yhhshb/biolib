@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <optional>
 #include <array>
-#include "MurmurHash3.hpp"
+#include "../bundled/MurmurHash3.hpp"
 
 namespace hash {
 
