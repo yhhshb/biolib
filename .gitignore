@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode
+
+# Build directories
+debug_build/
+build/
