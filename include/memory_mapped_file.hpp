@@ -160,22 +160,46 @@ file<T>& file<T>::operator=(file const& source)
 }
 
 template <typename T>
-bool file<T>::is_open() const { return m_fd != -1; }
+bool 
+file<T>::is_open() const 
+{ 
+    return m_fd != -1;
+}
 
 template <typename T>
-typename file<T>::const_iterator file<T>::cbegin() const { return const_iterator(m_data); }
+typename file<T>::const_iterator 
+file<T>::cbegin() const 
+{
+    return const_iterator(m_data);
+}
 
 template <typename T>
-typename file<T>::const_iterator file<T>::cend() const { return const_iterator(m_data, size()); }
+typename file<T>::const_iterator 
+file<T>::cend() const 
+{ 
+    return const_iterator(m_data, size());
+}
 
 template <typename T>
-uint64_t file<T>::bytes() const { return m_size; }
+uint64_t 
+file<T>::bytes() const 
+{
+    return m_size;
+}
 
 template <typename T>
-uint64_t file<T>::size() const { return m_size / sizeof(T); }
+uint64_t 
+file<T>::size() const 
+{
+    return m_size / sizeof(T);
+}
 
 template <typename T>
-T* file<T>::data() const { return m_data; }
+T* 
+file<T>::data() const 
+{
+    return m_data;
+}
 
 template <typename T>
 void file<T>::close()

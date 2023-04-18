@@ -1,5 +1,7 @@
 /**
- * Author: Yoshihiro Shibuya
+ * Original author: Giulio Ermanno Pibiri (jermp)
+ * 
+ * Modified by: Yoshihiro Shibuya (yhhshb)
  */
 
 #ifndef EXTERNAL_MEMORY_VECTOR
