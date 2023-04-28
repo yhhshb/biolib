@@ -58,5 +58,6 @@ if (MAKE_TESTS)
   add_executable(bv_test tests/bit_vector.cpp)
   target_link_libraries(bv_test argparse)
 
+  add_executable(popcount tests/popcount.cpp)
   add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)
 endif()

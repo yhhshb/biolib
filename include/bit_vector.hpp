@@ -12,6 +12,49 @@ class vector
         using value_type = UnsignedIntegerType;
         using block_type = UnsignedIntegerType;
 
+        class const_iterator
+        {
+            public:
+                const_iterator(vector const& vec, std::size_t ref_idx);
+                bool operator*() const;
+                const_iterator const& operator++() noexcept;
+                const_iterator operator++(int) noexcept;
+            
+            private:
+                vector const& parent_vector;
+                std::size_t idx;
+                UnsignedIntegerType buffer;
+
+                friend bool operator==(const_iterator const& a, const_iterator const& b) 
+                {
+                    bool same_start = a.idx == b.idx;
+                    return (&a.parent_vector == &b.parent_vector) and same_start;
+                };
+                friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+        };
+
+        class one_position_iterator
+        {
+            public:
+                one_position_iterator(vector const& vec, std::size_t ref_idx);
+                std::size_t operator*() const;
+                one_position_iterator const& operator++() const noexcept;
+                one_position_iterator operator++(int) const noexcept;
+            
+            private:
+                vector const& parent_vector;
+                std::size_t idx;
+
+                void find_next_one();
+
+                friend bool operator==(const_iterator const& a, const_iterator const& b) 
+                {
+                    bool same_start = a.idx == b.idx;
+                    return (&a.parent_vector == &b.parent_vector) and same_start;
+                };
+                friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+        };
+
         vector() noexcept;
         vector(std::size_t size, bool val = false);
         void reserve(std::size_t capacity);
@@ -29,8 +72,18 @@ class vector
         UnsignedIntegerType& operator[](std::size_t idx);
         UnsignedIntegerType const& block_at(std::size_t idx) const;
 
+        const_iterator cbegin() const;
+        const_iterator cend() const;
+        const_iterator begin() const {return cbegin();}
+        const_iterator end() const {return cend();}
+
+        one_position_iterator cpos_begin() const;
+        one_position_iterator cpos_end() const;
+        one_position_iterator pos_begin() const {return cpos_begin();}
+        one_position_iterator pos_end() const {return cpos_end();}
+
         UnsignedIntegerType const* data() const noexcept;
-        std::vector<UnsignedIntegerType> const& data(int) const noexcept;
+        std::vector<UnsignedIntegerType> const& vector_data() const noexcept;
         std::size_t block_size() const noexcept;
         std::size_t size() const noexcept;
         void swap(vector& other);
@@ -56,7 +109,7 @@ template <typename UnsignedIntegerType>
 vector<UnsignedIntegerType>::vector(std::size_t size, bool val) 
     : block_bit_size(sizeof(UnsignedIntegerType) * 8), bsize(size)
 {
-    _data.resize(block_size(), static_cast<UnsignedIntegerType>(val));
+    _data.resize(bit_to_byte_size(bsize), static_cast<UnsignedIntegerType>(val));
 }
 
 template <typename UnsignedIntegerType>
@@ -100,7 +153,7 @@ void
 vector<UnsignedIntegerType>::push_back(bool bit)
 {
     auto [a, b] = idx_to_coordinates(bsize);
-    if (a == data.size()) _data.push_back(static_cast<block_type>(0));
+    if (a == _data.size()) _data.push_back(static_cast<block_type>(0));
     ++bsize;
     auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
     _data[block_idx] |= static_cast<block_type>(bit) << (bit_idx);
@@ -111,12 +164,12 @@ void
 vector<UnsignedIntegerType>::push_back(UnsignedIntegerType block, std::size_t suffix_len)
 {
     auto [a, b] = idx_to_coordinates(bsize + suffix_len);
-    if (a >= data.size()) {
+    if (a >= _data.size()) {
         _data.push_back(static_cast<block_type>(block >> (block_bit_size - b)));
     }
     bsize += suffix_len;
     auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
-    data[block_idx] |= block << b;
+    _data[block_idx] |= block << b;
 }
 
 template <typename UnsignedIntegerType>
@@ -124,7 +177,7 @@ void
 vector<UnsignedIntegerType>::set(std::size_t idx)
 {
     auto [block_idx, bit_idx] = idx_to_coordinates(idx);
-    data[block_idx] |= static_cast<UnsignedIntegerType>(1) << bit_idx;
+    _data[block_idx] |= static_cast<UnsignedIntegerType>(1) << bit_idx;
 }
 
 template <typename UnsignedIntegerType>
@@ -132,7 +185,7 @@ void
 vector<UnsignedIntegerType>::clear(std::size_t idx)
 {
     auto [block_idx, bit_idx] = idx_to_coordinates(idx);
-    data[block_idx] &= ~(static_cast<UnsignedIntegerType>(1) << bit_idx);
+    _data[block_idx] &= ~(static_cast<UnsignedIntegerType>(1) << bit_idx);
 }
 
 template <typename UnsignedIntegerType>
@@ -140,23 +193,51 @@ bool
 vector<UnsignedIntegerType>::at(std::size_t idx) const
 {
     auto [block_idx, bit_idx] = idx_to_coordinates(idx);
-    return static_cast<bool>(data.at(block_idx) & (static_cast<UnsignedIntegerType>(1) << bit_idx));
+    return static_cast<bool>(_data.at(block_idx) & (static_cast<UnsignedIntegerType>(1) << bit_idx));
 }
 
 template <typename UnsignedIntegerType>
 UnsignedIntegerType&
 vector<UnsignedIntegerType>::operator[](std::size_t idx)
 {
-    auto [block_idx, [[maybe_unused]] bit_idx] = idx_to_coordinates(idx);
-    return data[block_idx];
+    auto [block_idx, bit_idx] = idx_to_coordinates(idx);
+    return _data[block_idx];
 }
 
 template <typename UnsignedIntegerType>
 UnsignedIntegerType const&
 vector<UnsignedIntegerType>::block_at(std::size_t idx) const
 {
-    auto [block_idx, [[maybe_unused]] bit_idx] = idx_to_coordinates(idx);
-    return data.at(block_idx);
+    auto [block_idx, bit_idx] = idx_to_coordinates(idx);
+    return _data.at(block_idx);
+}
+
+template <typename UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::const_iterator
+vector<UnsignedIntegerType>::cbegin() const
+{
+    return const_iterator(*this, 0);
+}
+
+template <typename UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::const_iterator
+vector<UnsignedIntegerType>::cend() const
+{
+    return const_iterator(*this, bsize);
+}
+
+template <typename UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator
+vector<UnsignedIntegerType>::cpos_begin() const
+{
+    return one_position_iterator(*this, 0);
+}
+
+template <typename UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator
+vector<UnsignedIntegerType>::cpos_end() const
+{
+    return one_position_iterator(*this, bsize);
 }
 
 template <typename UnsignedIntegerType>
@@ -168,7 +249,7 @@ vector<UnsignedIntegerType>::data() const noexcept
 
 template <typename UnsignedIntegerType>
 std::vector<UnsignedIntegerType> const& 
-vector<UnsignedIntegerType>::data(int) const noexcept
+vector<UnsignedIntegerType>::vector_data() const noexcept
 {
     return _data;
 }
@@ -177,6 +258,7 @@ template <typename UnsignedIntegerType>
 std::size_t
 vector<UnsignedIntegerType>::block_size() const noexcept 
 {
+    // std::cerr << "bsize = " << bsize << " bit2bytesize = " << bit_to_byte_size(bsize) << ", vector data size = " << _data.size() << "\n"; 
     assert(bit_to_byte_size(bsize) == _data.size());
     return _data.size();
 }
@@ -207,9 +289,9 @@ vector<UnsignedIntegerType>::bit_to_byte_size(std::size_t bit_size) const noexce
 
 template <typename UnsignedIntegerType>
 std::tuple<std::size_t, std::size_t> 
-vector<UnsignedIntegerType>::idx_to_coordinates(std::size_t idx) const noexcept
+vector<UnsignedIntegerType>::idx_to_coordinates(std::size_t idx) const
 {
-    if (idx >= bsize) throw std::out_of_range("[bit vector set]");
+    if (idx >= bsize) throw std::out_of_range("[index to block coordinates]");
     std::size_t block_idx = idx / block_bit_size;
     std::size_t bit_idx = idx % block_bit_size;
     return std::make_tuple(block_idx, bit_idx);
@@ -217,10 +299,103 @@ vector<UnsignedIntegerType>::idx_to_coordinates(std::size_t idx) const noexcept
 
 template <typename UnsignedIntegerType>
 template <class Visitor>
-void vector<UnsignedIntegerType>::visit(Visitor& visitor)
+void 
+vector<UnsignedIntegerType>::visit(Visitor& visitor)
 {
     visitor.apply(bsize);
     visitor.apply(_data);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+
+template <class UnsignedIntegerType>
+vector<UnsignedIntegerType>::const_iterator::const_iterator(vector const& vec, std::size_t ref_idx)
+    : parent_vector(vec), idx(ref_idx)
+{
+    if (idx > parent_vector.bsize) throw std::out_of_range("[bit vector const_iterator]");
+    if (idx != parent_vector.bsize) {
+        auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
+        buffer = parent_vector.block_at(block_idx);
+        buffer >>= bit_idx;
+    }
+}
+
+template <class UnsignedIntegerType>
+bool
+vector<UnsignedIntegerType>::const_iterator::operator*() const
+{
+    assert(idx < parent_vector.bsize);
+    return buffer & static_cast<UnsignedIntegerType>(1);
+}
+
+template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::const_iterator const&
+vector<UnsignedIntegerType>::const_iterator::operator++() noexcept
+{
+    auto [old_block_idx, old_bit_idx] = parent_vector.idx_to_coordinates(idx);
+    ++idx;
+    if (idx != parent_vector.size()) {
+        auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
+        if (old_block_idx != block_idx) {
+            assert(block_idx - old_block_idx == 1);
+            assert(bit_idx == 0);
+            buffer = parent_vector.block_at(idx);
+        } else {
+            assert(bit_idx - old_bit_idx == 1);
+            buffer >>= 1;
+        }
+    }
+    return *this;
+}
+
+template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::const_iterator
+vector<UnsignedIntegerType>::const_iterator::operator++(int) noexcept
+{
+    auto current = *this;
+    operator++();
+    return current;
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+template <class UnsignedIntegerType>
+vector<UnsignedIntegerType>::one_position_iterator::one_position_iterator(vector const& vec, std::size_t ref_idx)
+    : parent_vector(vec), idx(ref_idx)
+{
+    if (idx >= parent_vector.bsize) idx = parent_vector.bsize();
+    find_next_one();
+}
+
+template <class UnsignedIntegerType>
+std::size_t
+vector<UnsignedIntegerType>::one_position_iterator::operator*() const
+{
+    return idx;
+}
+
+template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator const&
+vector<UnsignedIntegerType>::one_position_iterator::operator++() const noexcept
+{
+    ++idx;
+    find_next_one();
+}
+
+template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator
+vector<UnsignedIntegerType>::one_position_iterator::operator++(int) const noexcept
+{
+    auto current = *this;
+    operator++();
+    return current;
+}
+
+template <class UnsignedIntegerType>
+void
+vector<UnsignedIntegerType>::one_position_iterator::find_next_one()
+{
+    while(idx < parent_vector.bsize() and not parent_vector.at(idx)) ++idx;
 }
 
 } // namespace bv

@@ -33,7 +33,7 @@ class syncmer_sampler
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
                     bool same_start = a.itr_start == b.itr_start;
-                    return (a.parent_sampler == b.parent_sampler) and same_start;
+                    return (&a.parent_sampler == &b.parent_sampler) and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
 
