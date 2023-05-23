@@ -55,8 +55,10 @@ if (MAKE_TESTS)
   target_link_libraries(jaccard_test argparse z)
   add_executable(rsg tests/random_sequence_generation.cpp)
   target_link_libraries(rsg argparse)
+
   add_executable(bv_test tests/bit_vector.cpp)
-  target_link_libraries(bv_test argparse)
+  add_executable(pv_test tests/packed_vector.cpp)
+  add_executable(rs_test tests/rs.cpp)
 
   add_executable(popcount tests/popcount.cpp)
   add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)

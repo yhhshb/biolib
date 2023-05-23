@@ -1,25 +1,19 @@
 #include <random>
+#include <iostream>
 #include <cassert>
-#include <argparse/argparse.hpp>
 #include "../include/bit_vector.hpp"
 
 template <typename T>
 void check_bit_vector(size_t seed, size_t vector_size, size_t insertions);
 
-int main() //int argc, char* argv[])
+int main()
 {
     using namespace std;
-    // argparse::ArgumentParser parser(argv[0]);
-    // parser.add_argument("-d", "--tmp-dir")
-    //     .help("Temporary directory where to save vector chunks")
-    //     .required();
-    // parser.parse_args(argc, argv);
-    // std::string tmp_dir = parser.get<std::string>("--tmp-dir");
 
     const size_t seed = 42;
-    const size_t binary_vector_size = 1000000;
     const size_t insertions = 100000;
-
+    const size_t binary_vector_size = 10 * insertions;
+    
     check_bit_vector<uint8_t>(seed, binary_vector_size, insertions);
     check_bit_vector<uint16_t>(seed, binary_vector_size, insertions);
     check_bit_vector<uint32_t>(seed, binary_vector_size, insertions);
@@ -55,15 +49,25 @@ void check_bit_vector(size_t seed, size_t vector_size, size_t insertions)
         // std::cerr << "setting position " << rp << ", vector size = " << bvec.size() << std::endl;
         bvec.set(rp);
     }
-    { // Check bit iterator
+
+    { // Check unary increment of bit iterator
         std::size_t j = 0;
         for (auto itr = bvec.cbegin(); itr != bvec.cend(); ++itr) {
             auto v = *itr;
-            // std::cerr << v << " == " << bvec.at(j) << std::endl;
             assert(v == bvec.at(j));
             ++j;
         }
     }
+
+    { // Check arbitrary increment of bit iterator
+        for (std::size_t i = 0; i < bvec.size(); ++i) {
+            auto v = *(bvec.cbegin() + i);
+            auto a = bvec.at(i);
+            // std::cerr << "i = " << i << ", v = " << v << ", a = " << a << "\n";
+            assert(v == a);
+        }
+    }
+
     for (std::size_t i = 0; i < insertions; ++i) { // check method clear(idx)
         if (bvec.at(i)) {
             bvec.clear(i);

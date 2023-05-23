@@ -12,13 +12,16 @@ class vector
         using value_type = UnsignedIntegerType;
         using block_type = UnsignedIntegerType;
 
-        class const_iterator
+        class const_iterator // iterator over all bits (true or false)
         {
             public:
                 const_iterator(vector const& vec, std::size_t ref_idx);
                 bool operator*() const;
                 const_iterator const& operator++() noexcept;
                 const_iterator operator++(int) noexcept;
+
+                template <typename I>
+                const_iterator operator+(I) const;
             
             private:
                 vector const& parent_vector;
@@ -33,7 +36,7 @@ class vector
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
 
-        class one_position_iterator
+        class one_position_iterator // iterator over select positions
         {
             public:
                 one_position_iterator(vector const& vec, std::size_t ref_idx);
@@ -64,10 +67,14 @@ class vector
 
         void push_back(bool bit);
         void push_back(UnsignedIntegerType block, std::size_t suffix_len);
+        bool pop_back();
 
         void set(std::size_t idx);
         void clear(std::size_t idx);
         bool at(std::size_t idx) const;
+        bool front() const;
+        bool back() const;
+        bool empty() const;
 
         UnsignedIntegerType& operator[](std::size_t idx);
         UnsignedIntegerType const& block_at(std::size_t idx) const;
@@ -86,6 +93,9 @@ class vector
         std::vector<UnsignedIntegerType> const& vector_data() const noexcept;
         std::size_t block_size() const noexcept;
         std::size_t size() const noexcept;
+        std::size_t capacity() const noexcept;
+        void shrink_to_fit() noexcept;
+        std::size_t max_size() const noexcept;
         void swap(vector& other);
 
         template <class Visitor>
@@ -173,6 +183,16 @@ vector<UnsignedIntegerType>::push_back(UnsignedIntegerType block, std::size_t su
 }
 
 template <typename UnsignedIntegerType>
+bool 
+vector<UnsignedIntegerType>::pop_back()
+{
+    if (bsize == 0) throw std::out_of_range("[pop_back]");
+    bool res = at(bsize - 1);
+    --bsize;
+    return res;
+}
+
+template <typename UnsignedIntegerType>
 void 
 vector<UnsignedIntegerType>::set(std::size_t idx)
 {
@@ -194,6 +214,27 @@ vector<UnsignedIntegerType>::at(std::size_t idx) const
 {
     auto [block_idx, bit_idx] = idx_to_coordinates(idx);
     return static_cast<bool>(_data.at(block_idx) & (static_cast<UnsignedIntegerType>(1) << bit_idx));
+}
+
+template <typename UnsignedIntegerType>
+bool 
+vector<UnsignedIntegerType>::front() const
+{
+    return at(0);
+}
+
+template <typename UnsignedIntegerType>
+bool 
+vector<UnsignedIntegerType>::back() const
+{
+    return at(bsize-1);
+}
+
+template <typename UnsignedIntegerType>
+bool 
+vector<UnsignedIntegerType>::empty() const
+{
+    return bsize == 0;
 }
 
 template <typename UnsignedIntegerType>
@@ -271,6 +312,27 @@ vector<UnsignedIntegerType>::size() const noexcept
 }
 
 template <typename UnsignedIntegerType>
+std::size_t 
+vector<UnsignedIntegerType>::capacity() const noexcept
+{
+    return _data.capacity() * sizeof(UnsignedIntegerType) * 8;
+}
+
+template <typename UnsignedIntegerType>
+void 
+vector<UnsignedIntegerType>::shrink_to_fit() noexcept
+{
+    _data.shrink_to_fit(bsize / 8 + 1);
+}
+
+template <typename UnsignedIntegerType>
+std::size_t 
+vector<UnsignedIntegerType>::max_size() const noexcept
+{
+    return _data.max_size() * sizeof(UnsignedIntegerType) * 8;
+}
+
+template <typename UnsignedIntegerType>
 void 
 vector<UnsignedIntegerType>::swap(vector& other)
 {
@@ -315,7 +377,7 @@ vector<UnsignedIntegerType>::const_iterator::const_iterator(vector const& vec, s
     if (idx > parent_vector.bsize) throw std::out_of_range("[bit vector const_iterator]");
     if (idx != parent_vector.bsize) {
         auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
-        buffer = parent_vector.block_at(block_idx);
+        buffer = parent_vector._data.at(block_idx);
         buffer >>= bit_idx;
     }
 }
@@ -334,12 +396,12 @@ vector<UnsignedIntegerType>::const_iterator::operator++() noexcept
 {
     auto [old_block_idx, old_bit_idx] = parent_vector.idx_to_coordinates(idx);
     ++idx;
-    if (idx != parent_vector.size()) {
+    if (idx < parent_vector.size()) {
         auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
         if (old_block_idx != block_idx) {
             assert(block_idx - old_block_idx == 1);
             assert(bit_idx == 0);
-            buffer = parent_vector.block_at(idx);
+            buffer = parent_vector._data.at(block_idx); // >> idx; useless, since idx is 0 here 
         } else {
             assert(bit_idx - old_bit_idx == 1);
             buffer >>= 1;
@@ -354,7 +416,21 @@ vector<UnsignedIntegerType>::const_iterator::operator++(int) noexcept
 {
     auto current = *this;
     operator++();
+    // auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
+    // buffer = parent_vector._data.at(idx);
     return current;
+}
+
+template <class UnsignedIntegerType>
+template <typename I>
+typename vector<UnsignedIntegerType>::const_iterator
+vector<UnsignedIntegerType>::const_iterator::operator+(I inc) const
+{
+    auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx + inc);
+    auto toret = *this;
+    toret.idx += inc;
+    toret.buffer = toret.parent_vector._data.at(block_idx) >> bit_idx;
+    return toret;
 }
 
 // -------------------------------------------------------------------------------------------------------
