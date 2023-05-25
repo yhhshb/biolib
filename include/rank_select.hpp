@@ -3,10 +3,11 @@
 
 #include <cmath>
 #include <vector>
+#include "constants.hpp"
 #include "bit_operations.hpp"
 #include "packed_vector.hpp"
 
-#include <iostream>
+// #include <iostream>
 
 namespace bit {
 
@@ -26,6 +27,8 @@ class rank_select
         std::size_t size() const noexcept;
         std::size_t size0() const noexcept;
         std::size_t size1() const noexcept;
+        std::size_t bit_size() const noexcept;
+        std::size_t bit_overhead() const noexcept;
 
         BitVector const& data() const noexcept;
 
@@ -35,7 +38,7 @@ class rank_select
     private:
         const BitVector _data;
         packed::vector<block_bit_size> blocks;
-        packed::vector<block_bit_size> super_blocks;
+        packed::vector<static_cast<std::size_t>(constants::ceil(constants::log2(block_bit_size * super_block_block_size)))> super_blocks;
 
         void build_index();
 };
@@ -55,16 +58,17 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::rank1(std::size_
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
     std::size_t block_idx = idx / block_bit_size;
     std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
+    // std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
+    // std::cerr << "block rank [" << block_idx << "] = " << block_rank << "\n";
     std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
-    std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
-    std::cerr << "block rank [" << block_idx << "] = " << block_rank << "\n";
+    
     std::size_t local_rank = 0;
     // std::size_t index = idx / block_bit_size * block_bit_size;
     for (auto itr = _data.cbegin() + idx / block_bit_size * block_bit_size; itr != _data.cbegin() + idx; ++itr) {
         // assert(_data.at(index) == *itr);
         local_rank += *itr; // no pre-computed table here
     }
-    std::cerr << "local rank =" << local_rank << "\n";
+    // std::cerr << "local rank =" << local_rank << "\n";
     return super_rank + block_rank + local_rank;
 }
 
@@ -123,6 +127,23 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::size1() const no
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+std::size_t 
+rank_select<BitVector, block_bit_size, super_block_block_size>::bit_size() const noexcept
+{
+    return _data.size() + bit_overhead();
+}
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+std::size_t 
+rank_select<BitVector, block_bit_size, super_block_block_size>::bit_overhead() const noexcept
+{
+    auto a = blocks.size() * block_bit_size;
+    auto b = super_blocks.size() * block_bit_size * super_block_block_size;
+    std::cerr << "-->" << a << "\n" << "-->" << b << "\n";
+    return a + b;
+}
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
 BitVector const&
 rank_select<BitVector, block_bit_size, super_block_block_size>::data() const noexcept
 {
@@ -171,11 +192,14 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::build_index()
             // all padding bits are 0 so no increment of cumulative_block_count
         }
     }
+    blocks.push_back(prev_block_count);
     super_blocks.push_back(prev_super_block_count);
     // std::cerr << "prev super block size = " << prev_super_block_count << "\n";
     // std::cerr << "data size = " << _data.size() << ", index = " << index << ", sb bit size = " << super_block_bit_size << "\n";
     assert(index % super_block_bit_size == 0);
     // std::cerr << "blocks size = " << blocks.size() << ", super blocks size = " << super_blocks.size() << "\n";
+    blocks.resize(blocks.size());
+    super_blocks.resize(super_blocks.size());
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>

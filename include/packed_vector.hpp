@@ -108,7 +108,7 @@ template <typename T>
 T 
 vector<bitwidth, UnderlyingType>::at(std::size_t index) const
 {
-    if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index));
+    if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
     auto [idx, shift] = index_to_ut_coordinates(index);
     // std::cerr << "index = " << index << " : idx = " << idx << ", shift = " << shift << "\n";
     if (shift < 0) { // crossing border
