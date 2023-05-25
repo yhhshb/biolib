@@ -37,15 +37,15 @@ class rank_select
 
     private:
         const BitVector _data;
-        packed::vector<block_bit_size> blocks;
-        packed::vector<static_cast<std::size_t>(constants::ceil(constants::log2(block_bit_size * super_block_block_size)))> super_blocks;
+        packed::fixed::vector<block_bit_size> blocks;
+        packed::dynamic::vector<max_width_native_type> super_blocks;
 
         void build_index();
 };
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
 rank_select<BitVector, block_bit_size, super_block_block_size>::rank_select(BitVector&& vector) 
-    : _data(vector)
+    : _data(vector), super_blocks(packed::dynamic::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
 {
     build_index();
 }
@@ -58,12 +58,11 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::rank1(std::size_
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
     std::size_t block_idx = idx / block_bit_size;
     std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
+    
+    std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
     // std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
     // std::cerr << "block rank [" << block_idx << "] = " << block_rank << "\n";
-    std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
-    
     std::size_t local_rank = 0;
-    // std::size_t index = idx / block_bit_size * block_bit_size;
     for (auto itr = _data.cbegin() + idx / block_bit_size * block_bit_size; itr != _data.cbegin() + idx; ++itr) {
         // assert(_data.at(index) == *itr);
         local_rank += *itr; // no pre-computed table here
@@ -137,9 +136,10 @@ template <typename BitVector, std::size_t block_bit_size, std::size_t super_bloc
 std::size_t 
 rank_select<BitVector, block_bit_size, super_block_block_size>::bit_overhead() const noexcept
 {
-    auto a = blocks.size() * block_bit_size;
-    auto b = super_blocks.size() * block_bit_size * super_block_block_size;
-    std::cerr << "-->" << a << "\n" << "-->" << b << "\n";
+    using namespace std;
+    auto a = blocks.size() * static_cast<std::size_t>(ceil(log2(block_bit_size)));
+    auto b = super_blocks.size() * super_blocks.bit_width();
+    // std::cerr << "-->" << a << "\n" << "-->" << b << "\n";
     return a + b;
 }
 
