@@ -43,12 +43,15 @@ class vector
                 std::size_t operator*() const;
                 one_position_iterator const& operator++() const noexcept;
                 one_position_iterator operator++(int) const noexcept;
+
+                template <typename I>
+                one_position_iterator operator+(I delta_on_the_actual_sequence_of_bits) const noexcept;
             
             private:
                 vector const& parent_vector;
                 std::size_t idx;
 
-                void find_next_one();
+                void find_next_one() noexcept;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
@@ -93,6 +96,7 @@ class vector
         std::vector<UnsignedIntegerType> const& vector_data() const noexcept;
         std::size_t block_size() const noexcept;
         std::size_t size() const noexcept;
+        std::size_t bit_size() const noexcept;
         std::size_t capacity() const noexcept;
         void shrink_to_fit() noexcept;
         std::size_t max_size() const noexcept;
@@ -100,6 +104,9 @@ class vector
 
         template <class Visitor>
         void visit(Visitor& visitor);
+
+        template <class Visitor>
+        void visit(Visitor& visitor) const;
         
     private:
         const std::size_t block_bit_size;
@@ -312,6 +319,13 @@ vector<UnsignedIntegerType>::size() const noexcept
 }
 
 template <typename UnsignedIntegerType>
+std::size_t
+vector<UnsignedIntegerType>::bit_size() const noexcept 
+{
+    return block_size() * sizeof(UnsignedIntegerType) * 8; // Do not use logtools for maximum portability
+}
+
+template <typename UnsignedIntegerType>
 std::size_t 
 vector<UnsignedIntegerType>::capacity() const noexcept
 {
@@ -363,6 +377,15 @@ template <typename UnsignedIntegerType>
 template <class Visitor>
 void 
 vector<UnsignedIntegerType>::visit(Visitor& visitor)
+{
+    visitor.apply(bsize);
+    visitor.apply(_data);
+}
+
+template <typename UnsignedIntegerType>
+template <class Visitor>
+void 
+vector<UnsignedIntegerType>::visit(Visitor& visitor) const
 {
     visitor.apply(bsize);
     visitor.apply(_data);
@@ -469,9 +492,18 @@ vector<UnsignedIntegerType>::one_position_iterator::operator++(int) const noexce
 
 template <class UnsignedIntegerType>
 void
-vector<UnsignedIntegerType>::one_position_iterator::find_next_one()
+vector<UnsignedIntegerType>::one_position_iterator::find_next_one() noexcept
 {
     while(idx < parent_vector.bsize() and not parent_vector.at(idx)) ++idx;
+}
+
+template <class UnsignedIntegerType>
+template <typename I>
+typename vector<UnsignedIntegerType>::one_position_iterator 
+vector<UnsignedIntegerType>::one_position_iterator::operator+(I inc) const noexcept
+{
+    idx += inc;
+    find_next_one();
 }
 
 } // namespace bv

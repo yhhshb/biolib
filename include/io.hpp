@@ -77,8 +77,8 @@ class loader
 
     private:
         std::istream& istrm;
-        size_t num_bytes_pods;
-        size_t num_bytes_vecs_of_pods;
+        std::size_t num_bytes_pods;
+        std::size_t num_bytes_vecs_of_pods;
 };
 
 /*

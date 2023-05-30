@@ -163,7 +163,7 @@ void check_packed_vector(size_t seed, size_t vector_size)
 {
     std::mt19937 gen(seed); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_int_distribution<std::size_t> distrib(0, std::pow(static_cast<std::size_t>(2), L) - 1);
-    bit::packed::fixed::vector<L, T> pv;
+    bit::packed::vector<T> pv(L);
     std::vector<std::size_t> check;
     for (std::size_t i = 0; i < vector_size; ++i) {
         auto val = distrib(gen);

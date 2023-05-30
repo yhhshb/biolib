@@ -6,24 +6,26 @@
 #include "constants.hpp"
 #include "bit_operations.hpp"
 #include "packed_vector.hpp"
-
-// #include <iostream>
+#include "select_hints.hpp"
+#include "logtools.hpp"
 
 namespace bit {
+namespace rs {
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
-class rank_select
+/**
+ * Static bitvector rank/select data structure.
+ */
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+class array : protected select_hints<with_select_hints>
 {
     public:
         using bv_type = BitVector;
-        // using block_bit_size = ; // view raw bit vectors as vectors of block_view_type integers
-        // using super_block_block_size = uint16_t; // type for storing 1 counts in super-blocks
 
-        rank_select(BitVector&& vector);
+        array(BitVector&& vector);
         std::size_t rank1(std::size_t idx) const;
         std::size_t rank0(std::size_t idx) const;
         std::size_t select1(std::size_t idx) const;
-        // std::size_t select0(std::size_t idx) const;
+        std::size_t select0(std::size_t idx) const;
         std::size_t size() const noexcept;
         std::size_t size0() const noexcept;
         std::size_t size1() const noexcept;
@@ -33,26 +35,35 @@ class rank_select
         BitVector const& data() const noexcept;
 
         template <class Visitor>
+        void visit(Visitor& visitor);
+
+        template <class Visitor>
         void visit(Visitor& visitor) const;
 
     private:
         const BitVector _data;
-        packed::fixed::vector<block_bit_size> blocks;
-        packed::dynamic::vector<max_width_native_type> super_blocks;
+        packed::vector<max_width_native_type> blocks;
+        packed::vector<max_width_native_type> super_blocks;
 
         void build_index();
+
+        // TODO:
+        // - pack each super-block and its blocks together in order to improve locality
+        // - Write specialized class for above problem, replacing the packed vectors 
 };
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
-rank_select<BitVector, block_bit_size, super_block_block_size>::rank_select(BitVector&& vector) 
-    : _data(vector), super_blocks(packed::dynamic::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::array(BitVector&& vector) 
+    : _data(vector), 
+      blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
+      super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
 {
     build_index();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::rank1(std::size_t idx) const
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::rank1(std::size_t idx) const
 {
     assert(idx < _data.size());
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
@@ -71,16 +82,16 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::rank1(std::size_
     return super_rank + block_rank + local_rank;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::rank0(std::size_t idx) const
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::rank0(std::size_t idx) const
 {
     return idx - rank1(idx);
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::select1(std::size_t th) const
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::select1(std::size_t th) const
 {
     assert(th < size1());
     std::size_t a = 0;
@@ -88,71 +99,75 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::select1(std::siz
     while(b - a > 1) {
         std::size_t mid = a + (b - a) / 2;
         std::size_t x = rank1(mid);
-        if (x <= th) {
-            a = mid;
-        } else {
-            b = mid;
-        }
+        if (x <= th) a = mid;
+        else b = mid;
     }
     return a;
 }
 
-// template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
-// std::size_t 
-// rank_select<BitVector, block_bit_size, super_block_block_size>::select0(std::size_t idx) const
-// {
-//     //
-// }
-
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::size() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::select0(std::size_t th) const
+{
+    assert(th < size1());
+    std::size_t a = 0;
+    std::size_t b = _data.size();
+    while(b - a > 1) {
+        std::size_t mid = a + (b - a) / 2;
+        std::size_t x = rank0(mid);
+        if (x <= th) a = mid;
+        else b = mid;
+    }
+    return a;
+}
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+std::size_t 
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size() const noexcept
 {
     return _data.size();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::size0() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size0() const noexcept
 {
     return rank0(_data.size());
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::size1() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size1() const noexcept
 {
     return rank1(_data.size());
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::bit_size() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::bit_size() const noexcept
 {
     return _data.size() + bit_overhead();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
-rank_select<BitVector, block_bit_size, super_block_block_size>::bit_overhead() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::bit_overhead() const noexcept
 {
-    using namespace std;
-    auto a = blocks.size() * static_cast<std::size_t>(ceil(log2(block_bit_size)));
-    auto b = super_blocks.size() * super_blocks.bit_width();
-    // std::cerr << "-->" << a << "\n" << "-->" << b << "\n";
-    return a + b;
+    logging_tools::libra logger;
+    visit(logger);
+    return 8 * logger.get_byte_size() - _data.bit_size();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 BitVector const&
-rank_select<BitVector, block_bit_size, super_block_block_size>::data() const noexcept
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::data() const noexcept
 {
     return _data;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 void 
-rank_select<BitVector, block_bit_size, super_block_block_size>::build_index()
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::build_index()
 {
     const std::size_t super_block_bit_size = super_block_block_size * block_bit_size;
     std::size_t prev_block_count = 0;
@@ -198,20 +213,37 @@ rank_select<BitVector, block_bit_size, super_block_block_size>::build_index()
     // std::cerr << "data size = " << _data.size() << ", index = " << index << ", sb bit size = " << super_block_bit_size << "\n";
     assert(index % super_block_bit_size == 0);
     // std::cerr << "blocks size = " << blocks.size() << ", super blocks size = " << super_blocks.size() << "\n";
+    // std::cerr << "blocks made of " << blocks.underlying_size() << " blocks of " << sizeof(bit::max_width_native_type) << " B\n";
     blocks.resize(blocks.size());
     super_blocks.resize(super_blocks.size());
+    // std::cerr << "blocks bit size = " << blocks.bit_size() << ", super blocks bit size = " << super_blocks.bit_size() << "\n";
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size>
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 template <class Visitor>
 void 
-rank_select<BitVector, block_bit_size, super_block_block_size>::visit(Visitor& visitor) const
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor)
 {
     visitor.apply(_data);
     visitor.apply(blocks);
     visitor.apply(super_blocks);
+    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
 }
 
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+template <class Visitor>
+void 
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor) const
+{
+    visitor.apply(_data);
+    visitor.apply(blocks);
+    visitor.apply(super_blocks);
+    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+}
+
+} // namespace rs
 } // namespace bit
+
+#include "rank_select_64.hpp"
 
 #endif // RANK_SELECT_HPP

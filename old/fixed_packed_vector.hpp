@@ -1,20 +1,14 @@
-#ifndef PACKED_VECTOR_HPP
-#define PACKED_VECTOR_HPP
-
-#include <cstdint>
-#include <cstddef>
 #include <vector>
-#include "bit_operations.hpp"
-#include "logtools.hpp"
 
 namespace bit {
 namespace packed {
+namespace fixed {
 
-template <typename UnderlyingType = max_width_native_type>
+template <std::size_t bitwidth, typename UnderlyingType = max_width_native_type>
 class vector
 {
     public:
-        vector(std::size_t bitwidth);
+        vector();
 
         vector(vector const&) = default;
 
@@ -43,8 +37,6 @@ class vector
         std::vector<UnderlyingType> const& vector_data() const noexcept;
         bool empty() const noexcept;
         std::size_t size() const noexcept;
-        std::size_t bit_size() const noexcept;
-        std::size_t underlying_size() const noexcept;
         std::size_t max_size() const noexcept;
         void reserve(std::size_t capacity);
         std::size_t capacity() const noexcept;
@@ -54,32 +46,29 @@ class vector
         void swap(vector& other);
 
         template <class Visitor>
-        void visit(Visitor& visitor);
-
-        template <class Visitor>
         void visit(Visitor& visitor) const;
-
+    
     private:
         static constexpr std::size_t ut_bit_size = 8 * sizeof(UnderlyingType);
         std::vector<UnderlyingType> _data;
-        const std::size_t _bitwidth;
+        const std::size_t ut_overhead;
         std::size_t _size;
 
         std::tuple<std::size_t, long long> index_to_ut_coordinates(std::size_t idx) const noexcept;
 };
 
-template <typename UnderlyingType>
-vector<UnderlyingType>::vector(std::size_t bitwidth)
-    : _bitwidth(bitwidth), 
-      _size(0)
+template <std::size_t bitwidth, typename UnderlyingType>
+vector<bitwidth, UnderlyingType>::vector()
+    : ut_overhead(static_cast<std::size_t>(std::ceil(bitwidth / ut_bit_size))), _size(0)
 {
-    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
+    static_assert(bitwidth <= ut_bit_size, "[packed vector] objects should fit in the underlying aobject type");
+    if constexpr (bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 void
-vector<UnderlyingType>::push_back(T val)
+vector<bitwidth, UnderlyingType>::push_back(T val)
 {
     resize(_size + 1);
     auto [idx, shift] = index_to_ut_coordinates(_size);
@@ -100,20 +89,20 @@ vector<UnderlyingType>::push_back(T val)
     ++_size;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 T
-vector<UnderlyingType>::pop_back()
+vector<bitwidth, UnderlyingType>::pop_back()
 {
     T res = at(_size - 1);
     --_size;
     return res;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 T 
-vector<UnderlyingType>::at(std::size_t index) const
+vector<bitwidth, UnderlyingType>::at(std::size_t index) const
 {
     if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
     auto [idx, shift] = index_to_ut_coordinates(index);
@@ -121,178 +110,153 @@ vector<UnderlyingType>::at(std::size_t index) const
     if (shift < 0) { // crossing border
         UnderlyingType buffer = _data[idx];
         // std::cerr << "_data[idx] = " << uint64_t(buffer) << "\n";
-        // std::size_t mask_shift = ut_bit_size + shift + _bitwidth;
-        UnderlyingType mask_shift = _bitwidth + shift;
+        // std::size_t mask_shift = ut_bit_size + shift + bitwidth;
+        UnderlyingType mask_shift = bitwidth + shift;
         // std::cerr << "mask_shift = " << uint64_t(mask_shift) << "\n";
         buffer &= (UnderlyingType(1) << mask_shift) - 1;
         buffer <<= -shift;
         // std::cerr << "left part = " << uint64_t(buffer) << "\n";
-        auto buffer2 = _data[idx + 1] & ~((UnderlyingType(1) << (ut_bit_size - _bitwidth)) - 1);
+        auto buffer2 = _data[idx + 1] & ~((UnderlyingType(1) << (ut_bit_size - bitwidth)) - 1);
         // std::cerr << "right part = " << uint64_t(buffer2) << "\n";
         buffer |= buffer2 >> (ut_bit_size + shift);
         return static_cast<T>(buffer);
     } else { // perfect fit
         UnderlyingType buffer = static_cast<T>(_data[idx] >> shift);
-        if (_bitwidth != ut_bit_size) return buffer & ((T(1) << _bitwidth) - 1);
+        if (bitwidth != ut_bit_size) return buffer & ((T(1) << bitwidth) - 1);
         else return buffer;
     }
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 T 
-vector<UnderlyingType>::operator[](std::size_t index) const
+vector<bitwidth, UnderlyingType>::operator[](std::size_t index) const
 {
     at(index);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 T 
-vector<UnderlyingType>::front() const
+vector<bitwidth, UnderlyingType>::front() const
 {
     return at(0);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <typename T>
 T 
-vector<UnderlyingType>::back() const
+vector<bitwidth, UnderlyingType>::back() const
 {
     return at(_size - 1);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::size_t 
-vector<UnderlyingType>::bit_width() const noexcept
+vector<bitwidth, UnderlyingType>::bit_width() const noexcept
 {
-    return _bitwidth;
+    return bitwidth;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 UnderlyingType const* 
-vector<UnderlyingType>::data() const noexcept
+vector<bitwidth, UnderlyingType>::data() const noexcept
 {
     return _data.data();
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::vector<UnderlyingType> const& 
-vector<UnderlyingType>::vector_data() const noexcept
+vector<bitwidth, UnderlyingType>::vector_data() const noexcept
 {
     return _data;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 bool 
-vector<UnderlyingType>::empty() const noexcept
+vector<bitwidth, UnderlyingType>::empty() const noexcept
 {
     return _size == 0;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::size_t 
-vector<UnderlyingType>::size() const noexcept
+vector<bitwidth, UnderlyingType>::size() const noexcept
 {
     return _size;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::size_t 
-vector<UnderlyingType>::bit_size() const noexcept
+vector<bitwidth, UnderlyingType>::max_size() const noexcept
 {
-    logging_tools::libra l;
-    visit(l);
-    auto logged_size = l.get_byte_size() * 8;
-    return logged_size;
+    return _data.max_size() * ut_bit_size / bitwidth;
 }
 
-template <typename UnderlyingType>
-std::size_t 
-vector<UnderlyingType>::underlying_size() const noexcept
-{
-    return _data.size();
-}
-
-template <typename UnderlyingType>
-std::size_t 
-vector<UnderlyingType>::max_size() const noexcept
-{
-    return _data.max_size() * ut_bit_size / _bitwidth;
-}
-
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 void 
-vector<UnderlyingType>::reserve(std::size_t capacity)
+vector<bitwidth, UnderlyingType>::reserve(std::size_t capacity)
 {
-    _data.reserve(capacity * _bitwidth / ut_bit_size + 1);
+    _data.reserve(capacity * bitwidth / ut_bit_size + 1);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::size_t 
-vector<UnderlyingType>::capacity() const noexcept
+vector<bitwidth, UnderlyingType>::capacity() const noexcept
 {
-    return _data.capacity() * ut_bit_size / _bitwidth;
+    return _data.capacity() * ut_bit_size / bitwidth;
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 void 
-vector<UnderlyingType>::shrink_to_fit() noexcept
+vector<bitwidth, UnderlyingType>::shrink_to_fit() noexcept
 {
     _data.shrink_to_fit();
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 void 
-vector<UnderlyingType>::resize(std::size_t size)
+vector<bitwidth, UnderlyingType>::resize(std::size_t size)
 {
-    _data.resize(size * _bitwidth / ut_bit_size + 1);
+    _data.resize(size * bitwidth / ut_bit_size + 1);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 void 
-vector<UnderlyingType>::clear() noexcept
+vector<bitwidth, UnderlyingType>::clear() noexcept
 {
     _size = 0;
     _data.clear();
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 void 
-vector<UnderlyingType>::swap(vector& other)
+vector<bitwidth, UnderlyingType>::swap(vector& other)
 {
     std::swap(_size, other._size);
     _data.swap(other._data);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 std::tuple<std::size_t, long long> 
-vector<UnderlyingType>::index_to_ut_coordinates(std::size_t idx) const noexcept
+vector<bitwidth, UnderlyingType>::index_to_ut_coordinates(std::size_t idx) const noexcept
 {
-    std::size_t ut_idx = (idx * _bitwidth) / ut_bit_size;
-    long long ut_shift = ut_bit_size - _bitwidth - ((idx * _bitwidth) % ut_bit_size);
+    // if (idx >= _size) throw std::out_of_range("[packed vector]");
+    std::size_t ut_idx = (idx * bitwidth) / ut_bit_size;
+    long long ut_shift = ut_bit_size - bitwidth - ((idx * bitwidth) % ut_bit_size);
     return std::make_tuple(ut_idx, ut_shift);
 }
 
-template <typename UnderlyingType>
+template <std::size_t bitwidth, typename UnderlyingType>
 template <class Visitor>
 void 
-vector<UnderlyingType>::visit(Visitor& visitor)
+vector<bitwidth, UnderlyingType>::visit(Visitor& visitor) const
 {
     visitor.apply(_data);
+    visitor.apply(ut_overhead);
     visitor.apply(_size);
 }
 
-template <typename UnderlyingType>
-template <class Visitor>
-void 
-vector<UnderlyingType>::visit(Visitor& visitor) const
-{
-    visitor.apply(_data);
-    visitor.apply(_size);
-}
-
+} // namespace fixed
 } // namespace packed
 } // namespace bit
-
-#endif // PACKED_VECTOR_HPP

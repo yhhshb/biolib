@@ -94,6 +94,79 @@ constexpr int popcount(T x) noexcept
     #endif
 }
 
+inline int select(uint8_t x, std::size_t th)
+{
+    auto pc = popcount(x);
+    assert(pc >= 0);
+    assert(th < static_cast<std::size_t>(pc));
+    // static_assert(false, "TODO");
+    return 0;
+}
+
+inline int select(uint16_t x, std::size_t th)
+{
+    auto pc = popcount(x);
+    assert(pc >= 0);
+    assert(th < static_cast<std::size_t>(pc));
+    // static_assert(false, "TODO");
+    return 0;
+}
+
+inline int select(uint32_t x, std::size_t th)
+{
+    auto pc = popcount(x);
+    assert(pc >= 0);
+    assert(th < static_cast<std::size_t>(pc));
+    // static_assert(false, "TODO");
+    return 0;
+}
+
+inline int select(uint64_t x, std::size_t th)
+{
+#ifndef __BMI2__
+    // Modified from: Bit Twiddling Hacks
+    // https://graphics.stanford.edu/~seander/bithacks.html#SelectPosFromMSBRank
+    unsigned int s;       // Output: Resulting position of bit with rank r [1-64]
+    uint64_t a, b, c, d;  // Intermediate temporaries for bit count.
+    unsigned int t;       // Bit count temporary.
+    auto pc = popcount(x);
+    assert(pc >= 0);
+    assert(th < static_cast<std::size_t>(pc));
+    th = pc - th;
+
+    a = x - ((x >> 1) & ~0UL / 3);
+    b = (a & ~0UL / 5) + ((a >> 2) & ~0UL / 5);
+    c = (b + (b >> 4)) & ~0UL / 0x11;
+    d = (c + (c >> 8)) & ~0UL / 0x101;
+    t = (d >> 32) + (d >> 48);
+    s = 64;
+    s -= ((t - th) & 256) >> 3;
+    th -= (t & ((t - th) >> 8));
+    t = (d >> (s - 16)) & 0xff;
+    s -= ((t - th) & 256) >> 4;
+    th -= (t & ((t - th) >> 8));
+    t = (c >> (s - 8)) & 0xf;
+    s -= ((t - th) & 256) >> 5;
+    th -= (t & ((t - th) >> 8));
+    t = (b >> (s - 4)) & 0x7;
+    s -= ((t - th) & 256) >> 6;
+    th -= (t & ((t - th) >> 8));
+    t = (a >> (s - 2)) & 0x3;
+    s -= ((t - th) & 256) >> 7;
+    th -= (t & ((t - th) >> 8));
+    t = (x >> (s - 1)) & 0x1;
+    s -= ((t - th) & 256) >> 8;
+    return s - 1;
+#else
+    uint64_t i = 1ULL << th;
+    asm("pdep %[x], %[mask], %[x]" : [x] "+r"(x) : [mask] "r"(i));
+    asm("tzcnt %[bit], %[index]" : [index] "=r"(i) : [bit] "g"(x) : "cc");
+    return i;
+#endif
+}
+
+// ------------------------------------- Vectors -------------------------------------------
+
 template <class Vector>
 inline std::size_t popcount(Vector vec, std::size_t idx)
 {
