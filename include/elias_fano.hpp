@@ -29,56 +29,70 @@ class array
         void visit(Visitor& visitor) const;
 
     protected:
-        using rs_t = rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true>;
+        using bv_t = bit::vector<max_width_native_type>;
+        using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true>;
+        using pv_t = packed::vector<max_width_native_type>;
+        using build_t = std::pair<rs_t, pv_t>;
+
         std::tuple<std::size_t, std::size_t> prev_and_at(std::size_t idx) const;
 
     private:
         rs_t msbrs;
-        packed::vector<max_width_native_type> lsb;
+        pv_t lsb;
 
         template <class Iterator>
-        void build(Iterator start, std::size_t n, std::size_t u);
+        static build_t build(Iterator start, std::size_t n, std::size_t u); // main construction function
 
         template <class Iterator>
-        void build(Iterator start, std::size_t n, std::random_access_iterator_tag);
+        static build_t build(Iterator start, std::size_t n, std::random_access_iterator_tag);
 
         template <class Iterator>
-        void build(Iterator start, Iterator stop, std::random_access_iterator_tag);
+        static build_t build(Iterator start, std::size_t n, std::forward_iterator_tag);
 
         template <class Iterator>
-        void build(Iterator start, std::size_t n, std::forward_iterator_tag);
+        static build_t build(Iterator start, std::size_t n);
 
         template <class Iterator>
-        void build(Iterator start, Iterator stop, std::forward_iterator_tag);
+        static build_t build(Iterator start, Iterator stop, std::random_access_iterator_tag);
+
+        template <class Iterator>
+        static build_t build(Iterator start, Iterator stop, std::forward_iterator_tag);
+
+        template <class Iterator>
+        static build_t build(Iterator start, Iterator stop);
+
+        array(build_t pack) : msbrs(pack.first), lsb(pack.second) {} // dummy constructor for const members
 };
 
 template <class Iterator>
 array::array(Iterator start, Iterator stop)
-    : lsb(packed::dynamic::vector<max_width_native_type>(0))
+    : array(this->build(start, stop))
+    //msbrs(bv_t()), lsb(packed::vector<max_width_native_type>(0))
 {
-    static_assert(not std::numeric_limits<Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    if (start == stop) return;
-    typedef typename std::iterator_traits<Iterator>::iterator_category category;
-    build(start, stop, category);
+    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
+    // typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    // build(start, stop, category());
 }
 
 template <class Iterator>
 array::array(Iterator start, std::size_t n)
-    : lsb(packed::dynamic::vector<max_width_native_type>(0))
+    : array(this->build(start, n))
+    //lsb(packed::vector<max_width_native_type>(0))
 {
-    static_assert(not std::numeric_limits<Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    if (not n) return;
-    typedef typename std::iterator_traits<Iterator>::iterator_category category;
-    build(start, n, category());
+    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
+    // if (not n) return;
+    // typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    // build(start, n, category());
 }
 
 template <class Iterator>
 array::array(Iterator start, std::size_t n, std::size_t u)
-    : lsb(packed::dynamic::vector<max_width_native_type>(0))
+    : array(this->build(start, n, u))
+    //lsb(packed::vector<max_width_native_type>(0))
 {
-    static_assert(not std::numeric_limits<Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    if (not n) return;
-    build(start, n, u);
+    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
+    // if (not n) return;
+    // build(start, n, u);
 }
 
 std::size_t 
@@ -91,7 +105,7 @@ array::at(std::size_t idx) const
 std::tuple<std::size_t, std::size_t> 
 array::prev_and_at(std::size_t idx) const
 {
-    if (idx < size()) throw std::out_of_range("[Elias-Fano] index out of range");
+    if (idx >= size()) throw std::out_of_range("[Elias-Fano] index out of range");
     auto low1 = lsb.template at<uint64_t>(idx);
     auto low2 = lsb.template at<uint64_t>(idx + 1);
     auto l = lsb.bit_width();
@@ -110,18 +124,28 @@ array::diff_at(std::size_t idx) const
     return val2 - val1;
 }
 
+std::size_t 
+array::size() const noexcept
+{
+    return lsb.size() - 1;
+}
+
+#define BUILD_T std::pair<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true>, packed::vector<max_width_native_type>> 
+
 template <class Iterator>
-void
+BUILD_T
 array::build(Iterator start, std::size_t n, std::size_t u)
 {
+    static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
+    std::cerr << "root build\n";
     ++n; // add 0 at the beginning for convenience
-    const uint64_t l = uint64_t((n && u / n) ? pthash::util::msb(u / n) : 0);
-    const uint64_t low_mask = (uint64_t(1) << l) - 1;
+    const std::size_t l = (n && u / n) ? static_cast<std::size_t>(std::ceil(std::log2(u / n))) : 0;
+    const max_width_native_type low_mask = (static_cast<max_width_native_type>(1) << l) - 1;
 
     vector<max_width_native_type> msb;
     msb.resize(n + (u >> l) + 1, false);
     msb.set(0);
-    packed::dynamic::vector loclsb(l);
+    packed::vector loclsb(l);
     loclsb.reserve(n);
     if (l) loclsb.push_back(0);
     --n; // restore true size
@@ -135,50 +159,68 @@ array::build(Iterator start, std::size_t n, std::size_t u)
         prev = v;
     }
     rs_t temp(std::move(msb));
-    msbrs.swap(temp);
-    lsb.swap(loclsb);
+    return std::make_pair(temp, loclsb);
 }
 
 template <class Iterator>
-void 
+BUILD_T
 array::build(Iterator start, std::size_t n, std::random_access_iterator_tag)
 {
     std::size_t u = *(start + n - 1);
-    build(start, n, u);
+    return build(start, n, u);
 }
 
 template <class Iterator>
-void 
-array::build(Iterator start, Iterator stop, std::random_access_iterator_tag) 
-{
-    typedef typename std::iterator_traits<Iterator>::iterator_category category;
-    std::size_t n = stop - start;
-    build(start, n, category());
-}
-
-template <class Iterator>
-void 
+BUILD_T
 array::build(Iterator start, std::size_t n, std::forward_iterator_tag)
 {
     auto itr = start;
     std::advance(itr, n-1);
     std::size_t u = *itr;
-    build(start, n, u);
+    return build(start, n, u);
 }
 
 template <class Iterator>
-void 
-array::build(Iterator start, Iterator stop, std::forward_iterator_tag) 
+BUILD_T
+array::build(Iterator start, std::size_t n)
 {
     typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    return build(start, n, category());
+}
+
+template <class Iterator>
+BUILD_T
+array::build(Iterator start, Iterator stop, std::random_access_iterator_tag) 
+{
+    std::cerr << "rnd itr build\n";
+    std::size_t n = stop - start;
+    return build(start, n, std::random_access_iterator_tag());
+}
+
+template <class Iterator>
+BUILD_T
+array::build(Iterator start, Iterator stop, std::forward_iterator_tag) 
+{
+    std::cerr << "fwd itr build\n";
     std::size_t u = *start;
     std::size_t n = 0;
     for (auto itr = start; itr != stop; ++itr, ++n) {
         assert(*itr >= 0);
         u = std::max(u, *itr);
     }
-    build(start, n, category());
+    return build(start, n, std::forward_iterator_tag());
 }
+
+template <class Iterator>
+BUILD_T
+array::build(Iterator start, Iterator stop)
+{
+    std::cerr << "itr wrapper build\n";
+    typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    return build(start, stop, category());
+}
+
+#undef BUILD_T
 
 } // namespace ef
 } // namespace bit

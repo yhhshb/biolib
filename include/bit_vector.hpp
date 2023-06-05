@@ -41,11 +41,11 @@ class vector
             public:
                 one_position_iterator(vector const& vec, std::size_t ref_idx);
                 std::size_t operator*() const;
-                one_position_iterator const& operator++() const noexcept;
-                one_position_iterator operator++(int) const noexcept;
+                one_position_iterator const& operator++() noexcept;
+                one_position_iterator operator++(int) noexcept;
 
                 template <typename I>
-                one_position_iterator operator+(I delta_on_the_actual_sequence_of_bits) const noexcept;
+                one_position_iterator operator+(I delta_on_the_actual_sequence_of_bits) noexcept;
             
             private:
                 vector const& parent_vector;
@@ -63,6 +63,8 @@ class vector
 
         vector() noexcept;
         vector(std::size_t size, bool val = false);
+        vector(vector const&) = default;
+        vector(vector&&) = default;
         void reserve(std::size_t capacity);
         void resize(std::size_t size);
         void resize(std::size_t size, bool value);
@@ -367,7 +369,7 @@ template <typename UnsignedIntegerType>
 std::tuple<std::size_t, std::size_t> 
 vector<UnsignedIntegerType>::idx_to_coordinates(std::size_t idx) const
 {
-    if (idx >= bsize) throw std::out_of_range("[index to block coordinates]");
+    if (idx >= bsize) throw std::out_of_range("[(bit) vector] index to block coordinates");
     std::size_t block_idx = idx / block_bit_size;
     std::size_t bit_idx = idx % block_bit_size;
     return std::make_tuple(block_idx, bit_idx);
@@ -462,7 +464,7 @@ template <class UnsignedIntegerType>
 vector<UnsignedIntegerType>::one_position_iterator::one_position_iterator(vector const& vec, std::size_t ref_idx)
     : parent_vector(vec), idx(ref_idx)
 {
-    if (idx >= parent_vector.bsize) idx = parent_vector.bsize();
+    if (idx >= parent_vector.size()) idx = parent_vector.size();
     find_next_one();
 }
 
@@ -475,15 +477,16 @@ vector<UnsignedIntegerType>::one_position_iterator::operator*() const
 
 template <class UnsignedIntegerType>
 typename vector<UnsignedIntegerType>::one_position_iterator const&
-vector<UnsignedIntegerType>::one_position_iterator::operator++() const noexcept
+vector<UnsignedIntegerType>::one_position_iterator::operator++() noexcept
 {
     ++idx;
     find_next_one();
+    return *this;
 }
 
 template <class UnsignedIntegerType>
 typename vector<UnsignedIntegerType>::one_position_iterator
-vector<UnsignedIntegerType>::one_position_iterator::operator++(int) const noexcept
+vector<UnsignedIntegerType>::one_position_iterator::operator++(int) noexcept
 {
     auto current = *this;
     operator++();
@@ -494,16 +497,18 @@ template <class UnsignedIntegerType>
 void
 vector<UnsignedIntegerType>::one_position_iterator::find_next_one() noexcept
 {
-    while(idx < parent_vector.bsize() and not parent_vector.at(idx)) ++idx;
+    while(idx < parent_vector.size() and not parent_vector.at(idx)) ++idx;
 }
 
 template <class UnsignedIntegerType>
 template <typename I>
 typename vector<UnsignedIntegerType>::one_position_iterator 
-vector<UnsignedIntegerType>::one_position_iterator::operator+(I inc) const noexcept
+vector<UnsignedIntegerType>::one_position_iterator::operator+(I inc) noexcept
 {
-    idx += inc;
-    find_next_one();
+    auto toret = *this;
+    toret.idx += inc;
+    toret.find_next_one();
+    return toret;
 }
 
 } // namespace bv

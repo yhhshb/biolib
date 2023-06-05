@@ -14,6 +14,7 @@ namespace rs {
 
 /**
  * Static bitvector rank/select data structure.
+ * IMPORTANT rank(i) is defined as the number of 1 strictly before position i.
  */
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 class array : protected select_hints<with_select_hints>
@@ -22,6 +23,8 @@ class array : protected select_hints<with_select_hints>
         using bv_type = BitVector;
 
         array(BitVector&& vector);
+        array(array const&) = default;
+        array(array&&) = default;
         std::size_t rank1(std::size_t idx) const;
         std::size_t rank0(std::size_t idx) const;
         std::size_t select1(std::size_t idx) const;
@@ -33,6 +36,7 @@ class array : protected select_hints<with_select_hints>
         std::size_t bit_overhead() const noexcept;
 
         BitVector const& data() const noexcept;
+        void swap(array& other);
 
         template <class Visitor>
         void visit(Visitor& visitor);
@@ -41,7 +45,7 @@ class array : protected select_hints<with_select_hints>
         void visit(Visitor& visitor) const;
 
     private:
-        const BitVector _data;
+        BitVector const _data;
         packed::vector<max_width_native_type> blocks;
         packed::vector<max_width_native_type> super_blocks;
 
@@ -65,7 +69,7 @@ template <typename BitVector, std::size_t block_bit_size, std::size_t super_bloc
 std::size_t 
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::rank1(std::size_t idx) const
 {
-    assert(idx < _data.size());
+    if (idx > _data.size()) throw std::out_of_range("[rank1] idx = " + std::to_string(idx) + " with size = " + std::to_string(_data.size()));
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
     std::size_t block_idx = idx / block_bit_size;
     std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
@@ -74,10 +78,7 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::ran
     // std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
     // std::cerr << "block rank [" << block_idx << "] = " << block_rank << "\n";
     std::size_t local_rank = 0;
-    for (auto itr = _data.cbegin() + idx / block_bit_size * block_bit_size; itr != _data.cbegin() + idx; ++itr) {
-        // assert(_data.at(index) == *itr);
-        local_rank += *itr; // no pre-computed table here
-    }
+    for (auto itr = _data.cbegin() + idx / block_bit_size * block_bit_size; itr != _data.cbegin() + idx; ++itr) local_rank += *itr; // no pre-computed table here
     // std::cerr << "local rank =" << local_rank << "\n";
     return super_rank + block_rank + local_rank;
 }
@@ -98,6 +99,7 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::sel
     std::size_t b = _data.size();
     while(b - a > 1) {
         std::size_t mid = a + (b - a) / 2;
+        // std::cerr << "getting rank1 for idx = " << mid << "\n";
         std::size_t x = rank1(mid);
         if (x <= th) a = mid;
         else b = mid;
@@ -132,14 +134,15 @@ template <typename BitVector, std::size_t block_bit_size, std::size_t super_bloc
 std::size_t 
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size0() const noexcept
 {
-    return rank0(_data.size());
+    return size() - size1(); //rank0(_data.size() - 1) + (_data.at(_data.size() - 1) ? 0 : 1);
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 std::size_t 
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size1() const noexcept
 {
-    return rank1(_data.size());
+    if (_data.size() == 0) return 0;
+    return rank1(_data.size() - 1) + static_cast<std::size_t>(_data.at(_data.size() - 1));
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
@@ -163,6 +166,15 @@ BitVector const&
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::data() const noexcept
 {
     return _data;
+}
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+void
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::swap(array& other)
+{
+    _data.swap(other._data);
+    blocks.swap(other.blocks);
+    super_blocks.swap(other.super_blocks);
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>

@@ -59,6 +59,7 @@ if (MAKE_TESTS)
   add_executable(bv_test tests/bit_vector.cpp)
   add_executable(pv_test tests/packed_vector.cpp)
   add_executable(rs_test tests/rs.cpp)
+  add_executable(ef_test tests/ef.cpp)
 
   add_executable(popcount tests/popcount.cpp)
   add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)

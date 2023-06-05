@@ -14,6 +14,8 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         using bv_type = bit::vector<uint64_t>;
 
         array(bit::vector<uint64_t>&& vector);
+        array(array const&) = default;
+        array(array&&) = default;
         std::size_t rank1(std::size_t idx) const;
         std::size_t rank0(std::size_t idx) const {return idx - rank1();}
         std::size_t select1(std::size_t th) const;
@@ -25,6 +27,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         std::size_t bit_overhead() const noexcept; // {return interleaved_blocks.size() * sizeof(uint64_t) * 8;}
 
         bit::vector<uint64_t> const& data() const noexcept {return _data;}
+        void swap(array& other);
 
         template <class Visitor>
         void visit(Visitor& visitor);
@@ -150,17 +153,16 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select1(std::size_t th) 
         b = select_hints<with_select_hints>::hints.at(chunk) + 1;
     }
 
-    std::size_t super_block_idx = 0;
     while (b - a > 1) {
         std::size_t mid = a + (b - a) / 2;
         std::size_t x = super_block_rank(mid);
         if (x <= th) a = mid;
         else b = mid;
     }
-    super_block_idx = a;
+    auto super_block_idx = a;
     assert(super_block_idx < super_blocks_size());
 
-    std::size_t cur_rank = super_block_rank(super_block_idx)
+    std::size_t cur_rank = super_block_rank(super_block_idx);
     assert(cur_rank <= th);
 
     std::size_t rank_in_block_parallel = (th - cur_rank) * ones_step_9;
@@ -199,6 +201,15 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::bit_overhead() const noe
     logging_tools::libra logger;
     visit(logger);
     return 8 * logger.get_byte_size() - _data.bit_size();
+}
+
+template <bool with_select_hints>
+void 
+array<bit::vector<uint64_t>, 64, 8, with_select_hints>::swap(array& other)
+{
+    _data.swap(other._data);
+    payload.swap(other.payload);
+    interleaved_blocks.swap(other.interleaved_blocks);
 }
 
 template <bool with_select_hints>

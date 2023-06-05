@@ -15,9 +15,7 @@ class vector
 {
     public:
         vector(std::size_t bitwidth);
-
         vector(vector const&) = default;
-
         constexpr vector(vector&&) noexcept = default;
 
         template <typename T>

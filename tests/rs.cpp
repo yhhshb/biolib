@@ -2,6 +2,7 @@
 #include <random>
 #include <vector>
 #include <iostream>
+
 #include "../include/bit_vector.hpp"
 #include "../include/rank_select.hpp"
 
@@ -59,22 +60,42 @@ void check_rs(size_t seed, size_t vector_size, size_t insertions)
     std::cerr << "----------------------------------------------------------------\n";
     std::mt19937 gen(seed); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_int_distribution<std::size_t> distrib(0, vector_size - 1);
+    std::vector<std::size_t> inserted;
     bit::vector<T> bvec(vector_size, false);
     for (std::size_t i = 0; i < insertions; ++i) {
         std::size_t rp = distrib(gen);
         bvec.set(rp);
+        inserted.push_back(rp);
     }
     bvec.set(0);
-    // std::cerr << "\nInsertions inside binary vector: Done\n";
+    inserted.push_back(0);
+    bvec.set(bvec.size() - 1); // check size1 later
+    inserted.push_back(bvec.size() - 1);
+    std::sort(inserted.begin(), inserted.end());
+    inserted.erase(std::unique(inserted.begin(), inserted.end() ), inserted.end());
     bit::rs::array<decltype(bvec), bbs, sbbs, with_select_hints> rs_vec(std::move(bvec));
+
+    if (rs_vec.size1() != inserted.size()) {
+        std::cerr << rs_vec.size1() << " != " << inserted.size() << "\n";
+        throw std::runtime_error("[size1] FAIL");
+    }
+
     std::size_t rank = 0;
     for (std::size_t i = 0; i < rs_vec.size(); ++i) {
         // std::cerr << "rank of " << i << " = ";
         auto rs_rank = rs_vec.rank1(i);
         // std::cerr << rs_rank << " (true rank = " << rank << ")\n";
-        assert(rs_rank == rank);
+        if (rs_rank != rank) throw std::runtime_error("[rank] FAIL");
         if (rs_vec.data().at(i)) ++rank;
     }
+    // std::cerr << "Rank check DONE\n";
+
+    for (std::size_t i = 0; i < inserted.size(); ++i) {
+        auto idx = rs_vec.select1(i);
+        // std::cerr << "select [" << i << "] = " << idx << "(true answer = " << inserted.at(i) << ")\n";
+        if (idx != inserted.at(i)) throw std::runtime_error("[select] FAIL");
+    }
+
     std::cerr << "rank/select size = " << rs_vec.bit_size() << "\n";
     std::cerr << "rank/select overhead = " << rs_vec.bit_overhead() << "\n";
     std::cerr << "****************************************************************\n";
