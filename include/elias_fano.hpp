@@ -106,14 +106,20 @@ std::tuple<std::size_t, std::size_t>
 array::prev_and_at(std::size_t idx) const
 {
     if (idx >= size()) throw std::out_of_range("[Elias-Fano] index out of range");
+    // std::cerr << "[begin] prev_and_at:" << "\n";
+    // std::cerr << "idx = " << idx << "\n";
     auto low1 = lsb.template at<uint64_t>(idx);
     auto low2 = lsb.template at<uint64_t>(idx + 1);
     auto l = lsb.bit_width();
+    // std::cerr << "low1 = " << low1 << ", low2 = " << low2 << ", bit width = " << l << "\n";
     auto pos = msbrs.select1(idx);
+    // std::cerr << "pos = " << pos << "\n";
     uint64_t h1 = pos - idx;
-    uint64_t h2 = *(++(msbrs.data().cpos_begin() + pos + 1)) - idx - 1; // just search for the next one, faster than calling select1 again
+    uint64_t h2 = *(++(msbrs.data().cpos_begin() + pos)) - idx - 1; // just search for the next one, faster than calling select1 again
+    // std::cerr << "high1 = " << h1 << ", high2 = " << h2 << "\n"; 
     auto val1 = (h1 << l) | low1;
     auto val2 = (h2 << l) | low2;
+    // std::cerr << "[end] prev_and_at:" << "\n";
     return {val1, val2};
 }
 
@@ -137,7 +143,6 @@ BUILD_T
 array::build(Iterator start, std::size_t n, std::size_t u)
 {
     static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    std::cerr << "root build\n";
     ++n; // add 0 at the beginning for convenience
     const std::size_t l = (n && u / n) ? static_cast<std::size_t>(std::ceil(std::log2(u / n))) : 0;
     const max_width_native_type low_mask = (static_cast<max_width_native_type>(1) << l) - 1;
@@ -192,7 +197,6 @@ template <class Iterator>
 BUILD_T
 array::build(Iterator start, Iterator stop, std::random_access_iterator_tag) 
 {
-    std::cerr << "rnd itr build\n";
     std::size_t n = stop - start;
     return build(start, n, std::random_access_iterator_tag());
 }
@@ -201,7 +205,6 @@ template <class Iterator>
 BUILD_T
 array::build(Iterator start, Iterator stop, std::forward_iterator_tag) 
 {
-    std::cerr << "fwd itr build\n";
     std::size_t u = *start;
     std::size_t n = 0;
     for (auto itr = start; itr != stop; ++itr, ++n) {
@@ -215,7 +218,6 @@ template <class Iterator>
 BUILD_T
 array::build(Iterator start, Iterator stop)
 {
-    std::cerr << "itr wrapper build\n";
     typedef typename std::iterator_traits<Iterator>::iterator_category category;
     return build(start, stop, category());
 }

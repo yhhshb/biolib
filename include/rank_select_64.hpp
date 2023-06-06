@@ -43,10 +43,10 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         static const uint64_t ones_step_9 = 1ULL << 0 | 1ULL << 9 | 1ULL << 18 | 1ULL << 27 | 1ULL << 36 | 1ULL << 45 | 1ULL << 54;
         static const uint64_t msbs_step_9 = 0x100ULL * ones_step_9;
         bit::vector<uint64_t> const _data;
-        std::vector<uint64_t> const& payload;
         std::vector<uint64_t> interleaved_blocks;
 
         void build_index();
+        inline std::vector<uint64_t> const& payload() const noexcept {return _data.vector_data();}
         inline std::size_t super_blocks_size() const {return interleaved_blocks.size() / 2 - 1;}
         inline std::size_t super_block_rank(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2);}
         inline std::size_t block_ranks(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2 + 1);}
@@ -66,7 +66,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
 
 template <bool with_select_hints>
 array<bit::vector<uint64_t>, 64, 8, with_select_hints>::array(bit::vector<uint64_t>&& vector)
-    : _data(vector), payload(_data.vector_data())// Possible undefined behaviour
+    : _data(vector)
 {
     build_index();
 }
@@ -80,8 +80,8 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::build_index()
     uint64_t cur_subrank = 0;
     uint64_t subranks = 0;
     block_rank_pairs.push_back(0);
-    for (uint64_t i = 0; i < payload.size(); ++i) {
-        uint64_t word_pop = popcount(payload.at(i));
+    for (uint64_t i = 0; i < payload().size(); ++i) {
+        uint64_t word_pop = popcount(payload().at(i));
         uint64_t shift = i % super_block_block_size;
         if (shift) {
             subranks <<= 9;
@@ -97,14 +97,14 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::build_index()
             cur_subrank = 0;
         }
     }
-    uint64_t left = super_block_block_size - payload.size() % super_block_block_size;
+    uint64_t left = super_block_block_size - payload().size() % super_block_block_size;
     for (uint64_t i = 0; i < left; ++i) {
         subranks <<= 9;
         subranks |= cur_subrank;
     }
     block_rank_pairs.push_back(subranks);
 
-    if (payload.size() % super_block_block_size) {
+    if (payload().size() % super_block_block_size) {
         block_rank_pairs.push_back(next_rank);
         block_rank_pairs.push_back(0);
     }
@@ -135,7 +135,7 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::rank1(std::size_t idx) c
     std::size_t sub_block = idx / block_bit_size;
     std::size_t r = super_and_block_partial_rank(sub_block);
     std::size_t sub_left = idx % block_bit_size;
-    if (sub_left) r += popcount(payload.at(sub_block) << (block_bit_size - sub_left));
+    if (sub_left) r += popcount(payload().at(sub_block) << (block_bit_size - sub_left));
     return r;
 }
 
@@ -172,7 +172,19 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select1(std::size_t th) 
     assert(cur_rank <= th);
 
     uint64_t word_offset = super_block_idx * super_block_block_size + block_offset;
-    return word_offset * 64 + select(payload.at(word_offset), th - cur_rank);
+    uint64_t last = payload().at(word_offset);
+    std::size_t remaining_bits = th - cur_rank;
+    auto local_offset = select(last, remaining_bits);
+    // std::cerr << 
+    //     "payload[0] = " << payload().at(0) << 
+    //     " == " << _data.vector_data().at(0) << 
+    //     "\n" <<
+    //     "word offset = " << word_offset << 
+    //     ", last = " << last << 
+    //     ", remaining bits = " << remaining_bits << 
+    //     ", local offset = " << local_offset << 
+    //     "\n";
+    return word_offset * 64 + local_offset;
 }
 
 template <bool with_select_hints>
@@ -208,7 +220,6 @@ void
 array<bit::vector<uint64_t>, 64, 8, with_select_hints>::swap(array& other)
 {
     _data.swap(other._data);
-    payload.swap(other.payload);
     interleaved_blocks.swap(other.interleaved_blocks);
 }
 
