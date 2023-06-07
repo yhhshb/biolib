@@ -140,7 +140,7 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
 
         external_memory_vector(external_memory_vector&&) = default;
         void push_back(T const& elem);
-        const_iterator cbegin();
+        const_iterator cbegin() const;
         const_iterator cend() const;
         std::size_t size() const;
         ~external_memory_vector();
@@ -216,11 +216,12 @@ external_memory_vector<T, sorted>::push_back(T const& elem)
 
 template <typename T, bool sorted>
 typename external_memory_vector<T, sorted>::const_iterator
-external_memory_vector<T, sorted>::cbegin() 
+external_memory_vector<T, sorted>::cbegin() const
 {
-    if (m_buffer.size() != 0) sort_and_flush();
-    m_buffer.clear();
-    m_buffer.shrink_to_fit();
+    external_memory_vector<T, sorted>& me = const_cast<external_memory_vector<T, sorted>&>(*this);
+    if (m_buffer.size() != 0) me.sort_and_flush();
+    me.m_buffer.clear();
+    me.m_buffer.shrink_to_fit();
     return const_iterator(this);
 }
 
