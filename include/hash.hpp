@@ -47,15 +47,15 @@ class hash64
     public:
         typedef uint64_t hash_type;
 
-        uint64_t hash(uint8_t const* key, uint32_t keylen, uint32_t seed) const noexcept
+        static uint64_t hash(uint8_t const* key, uint32_t keylen, uint32_t seed) noexcept
         {
             return double_hash64::hash(key, keylen, seed)[0];
         }
 
         template <typename T>
-        uint64_t hash(T val, uint64_t seed) const noexcept
+        static uint64_t hash(T val, uint64_t seed) noexcept
         {
-            return double_hash64::hash(reinterpret_cast<uint8_t*>(&val), sizeof(T), seed);
+            return hash(reinterpret_cast<uint8_t*>(&val), sizeof(T), seed);
         }
 
         uint64_t operator()(uint8_t const* key, uint32_t keylen, uint32_t seed) const noexcept
