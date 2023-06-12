@@ -1,4 +1,5 @@
 #include "../include/hash.hpp"
+#include <limits>
 #include <cassert>
 
 namespace hash {
@@ -18,7 +19,7 @@ std::size_t minimizer_position_extractor::operator()(std::optional<uint64_t> kme
     if (!kmer) return klen + 1;
     uint64_t mval = hasher(kmer.value() & mask, 0);
     uint8_t minpos = 0;
-    for (std::size_t i = 0; i < klen - mlen + 1; ++i) {
+    for (std::size_t i = 0; i < static_cast<uint8_t>(klen - mlen + 1); ++i) {
         auto val = hasher(kmer.value() & mask, 0);
         if (mval >= val) {
             mval = val;
