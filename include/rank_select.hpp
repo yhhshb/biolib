@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <vector>
+#include <cassert>
 #include "constants.hpp"
 #include "bit_operations.hpp"
 #include "packed_vector.hpp"

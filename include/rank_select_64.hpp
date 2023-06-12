@@ -1,5 +1,6 @@
 #pragma once // just to not pollute the global scope with flags
 
+#include <cassert>
 #include "select_hints.hpp"
 #include "logtools.hpp"
 

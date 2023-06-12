@@ -2,6 +2,8 @@
 #define BIT_HPP
 
 #include <vector>
+#include <tuple>
+#include <cassert>
 
 namespace bit {
 
