@@ -43,6 +43,8 @@ set(BIOLIB_SOURCES
   bundled/MurmurHash3.cpp
 )
 
+add_library(biolib ${BIOLIB_SOURCES})
+
 # Tests------------------------------------------------------------------------
 if (MAKE_TESTS)
   add_executable(emv_test tests/external_memory_vector.cpp)
