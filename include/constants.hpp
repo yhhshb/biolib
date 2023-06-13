@@ -2,11 +2,11 @@
 #define CONSTANTS_HPP
 
 #include <array>
-#include "../bundled/gcem/include/gcem.hpp"
+// #include "../bundled/gcem/include/gcem.hpp"
 
 namespace constants {
 
-using namespace gcem;
+// using namespace gcem;
 
 const std::array<uint8_t, 256> seq_nt4_table = {
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,

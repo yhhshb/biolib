@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
         wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, 15, true);
         for (auto itr = view.cbegin(); itr != view.cend(); ++itr) {
             if (*itr) dummy = **itr;
+            dummy = dummy;
         }
     }
     if (seq) kseq_destroy(seq);

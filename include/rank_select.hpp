@@ -37,7 +37,7 @@ class array : protected select_hints<with_select_hints>
         std::size_t bit_overhead() const noexcept;
 
         BitVector const& data() const noexcept;
-        void swap(array& other);
+        // void swap(array& other);
 
         template <class Visitor>
         void visit(Visitor& visitor);
@@ -169,14 +169,14 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::dat
     return _data;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
-void
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::swap(array& other)
-{
-    _data.swap(other._data);
-    blocks.swap(other.blocks);
-    super_blocks.swap(other.super_blocks);
-}
+// template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+// void
+// array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::swap(array& other)
+// {
+//     _data.swap(other._data);
+//     blocks.swap(other.blocks);
+//     super_blocks.swap(other.super_blocks);
+// }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 void 

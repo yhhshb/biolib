@@ -1,8 +1,6 @@
 #pragma once // just to not pollute the global scope with flags
 
-#include <cassert>
-#include "select_hints.hpp"
-#include "logtools.hpp"
+// includes in rank_select.hpp
 
 namespace bit {
 namespace rs {
@@ -28,7 +26,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         std::size_t bit_overhead() const noexcept; // {return interleaved_blocks.size() * sizeof(uint64_t) * 8;}
 
         bit::vector<uint64_t> const& data() const noexcept {return _data;}
-        void swap(array& other);
+        // void swap(array& other);
 
         template <class Visitor>
         void visit(Visitor& visitor);
@@ -216,13 +214,13 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::bit_overhead() const noe
     return 8 * logger.get_byte_size() - _data.bit_size();
 }
 
-template <bool with_select_hints>
-void 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::swap(array& other)
-{
-    _data.swap(other._data);
-    interleaved_blocks.swap(other.interleaved_blocks);
-}
+// template <bool with_select_hints>
+// void 
+// array<bit::vector<uint64_t>, 64, 8, with_select_hints>::swap(array& other)
+// {
+//     _data.swap(other._data);
+//     interleaved_blocks.swap(other.interleaved_blocks);
+// }
 
 template <bool with_select_hints>
 template <class Visitor>

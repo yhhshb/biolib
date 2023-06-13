@@ -3,7 +3,9 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <array>
+#include <cassert>
 
 namespace bit {
 
@@ -38,17 +40,18 @@ static const std::array<uint8_t, 256> popvalues = {
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
 };
 
-#if __cplusplus >= 202002L
+#if defined(__cplusplus) && (__cplusplus >= 202002L)
 template <typename T>
 constexpr int std_popcount(T x) {return std::popcount(x);}
-#elif __SSE4_2__
+#elif defined(__SSE4_2__)
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC target("sse4")
 #endif
-constexpr int sse4_popcount(uint8_t x) {return _mm_popcnt_u8(x);}
-constexpr int sse4_popcount(uint16_t x) {return _mm_popcnt_u16(x);}
-constexpr int sse4_popcount(uint32_t x) {return _mm_popcnt_u32(x);}
-constexpr int sse4_popcount(uint64_t x) {return _mm_popcnt_u64(x);}
+#include <nmmintrin.h>
+int sse4_popcount(uint8_t x) {return _mm_popcnt_u32(x);}
+int sse4_popcount(uint16_t x) {return _mm_popcnt_u32(x);}
+int sse4_popcount(uint32_t x) {return _mm_popcnt_u32(x);}
+int sse4_popcount(uint64_t x) {return _mm_popcnt_u64(x);}
 #elif defined(__clang__) // use same extension as gcc
 constexpr int clang_popcount(uint8_t x) {return __builtin_popcount(x);}
 constexpr int clang_popcount(uint16_t x) {return __builtin_popcount(x);}
@@ -180,7 +183,7 @@ inline std::size_t popcount(Vector vec, std::size_t idx)
 inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx) 
 {
     typedef max_width_native_type view_t;
-    view_t const * const p = reinterpret_cast<view_t const * const>(arr);
+    view_t const * const p = reinterpret_cast<view_t const *>(arr);
     const std::size_t view_bit_size = sizeof(view_t) * 8;
     const std::size_t block_idx = bit_idx / view_bit_size;
     // std::cerr << "bit idx = " << bit_idx << ", block idx = " << block_idx << std::endl;

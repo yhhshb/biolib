@@ -1,6 +1,8 @@
 #ifndef HASH_SAMPLER_HPP
 #define HASH_SAMPLER_HPP
 
+#include <cstdint>
+#include <cstddef>
 #include <cassert>
 
 namespace sampler {

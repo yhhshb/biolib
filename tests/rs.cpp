@@ -2,6 +2,7 @@
 #include <random>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 #include "../include/bit_vector.hpp"
 #include "../include/rank_select.hpp"

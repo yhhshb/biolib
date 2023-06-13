@@ -3,6 +3,7 @@
 
 #include <random>
 #include <optional>
+#include <cassert>
 
 #include "constants.hpp"
 
