@@ -16,53 +16,6 @@
 
 namespace emem {
 
-template <class ItrType>
-class append_iterator 
-{
-    public:
-        typedef typename ItrType::value_type value_type;
-
-        append_iterator(std::vector<std::pair<ItrType, ItrType>>& start_end) noexcept
-            : i(0), iterators(start_end) {search_for_start();}
-
-        append_iterator(std::vector<std::pair<ItrType, ItrType>>&& start_end) noexcept
-            : i(0), iterators(start_end) {search_for_start();}
-
-        void operator++() 
-        {
-            ++(iterators[i].first);
-            if (iterators[i].first == iterators[i].second) {
-                search_for_start();
-                // ++i;
-            }
-        }
-
-        typename ItrType::value_type operator*() const 
-        {
-            return *(iterators[i].first);
-        }
-
-        bool has_next() const 
-        { // FIXME This is not very C++-ish, rewrite the class as a dummy container with methods begin() and end()
-            if (i == iterators.size()) return false;
-            return true;
-        }
-
-        std::size_t size() const
-        {
-            return iterators.size();
-        }
-
-    private:
-        uint64_t i;
-        std::vector<std::pair<ItrType, ItrType>>& iterators;
-
-        void search_for_start() noexcept
-        {
-            while (i < iterators.size() and iterators.at(i).first == iterators.at(i).second) ++i;
-        }
-};
-
 template <typename T>
 struct sorted_base {
     sorted_base(std::function<bool(T const&, T const&)> cmp) : m_sorter(cmp) {}

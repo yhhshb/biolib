@@ -18,6 +18,12 @@ class vector
         class const_iterator // iterator over all bits (true or false)
         {
             public:
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = bool;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+
                 const_iterator(vector const& vec, std::size_t ref_idx);
                 bool operator*() const;
                 const_iterator const& operator++() noexcept;
@@ -42,6 +48,12 @@ class vector
         class one_position_iterator // iterator over select positions
         {
             public:
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = std::size_t;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+
                 one_position_iterator(vector const& vec, std::size_t ref_idx);
                 std::size_t operator*() const;
                 one_position_iterator const& operator++() noexcept;
