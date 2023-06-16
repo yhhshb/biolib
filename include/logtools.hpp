@@ -2,6 +2,7 @@
 #define LOGTOOLS_HPP
 
 #include <cstddef>
+#include <string>
 
 namespace logging_tools {
 

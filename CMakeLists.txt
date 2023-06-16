@@ -14,16 +14,17 @@ MESSAGE(STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-if (UNIX AND NOT APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mbmi2 -msse4.2") # for hardware popcount and pdep
-endif()
-
 if (UNIX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-char-subscripts")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb")
+  if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mbmi2 -msse4.2") # for hardware popcount and pdep
+  endif()
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb")
+  endif()
   if (BIOLIB_USE_SANITIZERS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
   endif()
@@ -40,6 +41,7 @@ FetchContent_MakeAvailable(argparse)
 set(BIOLIB_SOURCES
   src/io.cpp
   src/hash.cpp
+  src/elias_fano.cpp
   bundled/MurmurHash3.cpp
 )
 
@@ -61,7 +63,7 @@ if (MAKE_TESTS)
   add_executable(bv_test tests/bit_vector.cpp)
   add_executable(pv_test tests/packed_vector.cpp)
   add_executable(rs_test tests/rs.cpp)
-  add_executable(ef_test tests/ef.cpp)
+  add_executable(ef_test tests/ef.cpp ${BIOLIB_SOURCES})
 
   add_executable(popcount tests/popcount.cpp)
   add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)

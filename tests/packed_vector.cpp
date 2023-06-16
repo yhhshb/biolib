@@ -161,8 +161,9 @@ int main()
 template <std::size_t L, typename T>
 void check_packed_vector(size_t seed, size_t vector_size)
 {
+    static_assert(L <= (8 * sizeof(T)));
     std::mt19937 gen(seed); // Standard mersenne_twister_engine seeded with rd()
-    std::uniform_int_distribution<std::size_t> distrib(0, (1ULL << L)- 1);//std::pow(static_cast<std::size_t>(2), L) - 1);
+    std::uniform_int_distribution<std::size_t> distrib(0, (1ULL << (L == 8*sizeof(T) ? 0 : L))- 1);//std::pow(static_cast<std::size_t>(2), L) - 1);
     bit::packed::vector<T> pv(L);
     std::vector<std::size_t> check;
     for (std::size_t i = 0; i < vector_size; ++i) {
