@@ -45,7 +45,7 @@ class member_iterator
         std::enable_if_t<not std::is_same<iterator_category, std::input_iterator_tag>::value , difference_type> 
         operator-(member_iterator other) const
         {
-            return member_iterator(hidden - other.hidden, access);
+            return hidden - other.hidden;
         }
 
     private:
