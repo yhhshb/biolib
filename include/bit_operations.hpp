@@ -48,10 +48,10 @@ constexpr int std_popcount(T x) {return std::popcount(x);}
 #pragma GCC target("sse4")
 #endif
 #include <nmmintrin.h>
-int sse4_popcount(uint8_t x) {return _mm_popcnt_u32(x);}
-int sse4_popcount(uint16_t x) {return _mm_popcnt_u32(x);}
-int sse4_popcount(uint32_t x) {return _mm_popcnt_u32(x);}
-int sse4_popcount(uint64_t x) {return _mm_popcnt_u64(x);}
+inline int sse4_popcount(uint8_t x) {return _mm_popcnt_u32(x);}
+inline int sse4_popcount(uint16_t x) {return _mm_popcnt_u32(x);}
+inline int sse4_popcount(uint32_t x) {return _mm_popcnt_u32(x);}
+inline int sse4_popcount(uint64_t x) {return _mm_popcnt_u64(x);}
 #elif defined(__clang__) // use same extension as gcc
 constexpr int clang_popcount(uint8_t x) {return __builtin_popcount(x);}
 constexpr int clang_popcount(uint16_t x) {return __builtin_popcount(x);}
