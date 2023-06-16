@@ -8,9 +8,6 @@ struct dummy_t {
     unsigned int b;
 };
 
-int get_a(dummy_t const& s) {return s.a;}
-
-
 int main() 
 {
     unsigned long i;
@@ -39,6 +36,7 @@ int main()
         ++i;
     }
     std::cerr << "\n";
+    assert(*(iterators::member_iterator(v.begin(), access_b) + 3) == 3);
     std::cerr << "Everything is OK\n";
     return 0;
 }
