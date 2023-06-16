@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <tuple>
+#include <stdexcept>
 #include <cassert>
 
 namespace bit {
