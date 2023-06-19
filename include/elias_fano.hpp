@@ -20,6 +20,9 @@ class array
         template <class Iterator>
         array(Iterator start, std::size_t n, std::size_t u);
 
+        array(array const& other) = default;
+        array(array&& other) = default;
+
         std::size_t at(std::size_t idx) const; // access prefix-sum
         std::size_t diff_at(std::size_t idx) const; // access difference
         std::size_t size() const noexcept;
