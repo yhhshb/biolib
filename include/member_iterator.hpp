@@ -1,3 +1,6 @@
+#ifndef MEMBER_ITERATOR_HPP
+#define MEMBER_ITERATOR_HPP
+
 #include <type_traits>
 #include "constants.hpp"
 
@@ -60,3 +63,5 @@ class member_iterator
 };
 
 } // namespace iterators
+
+#endif // MEMBER_ITERATOR_HPP

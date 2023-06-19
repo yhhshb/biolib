@@ -1,3 +1,6 @@
+#ifndef CUMULATIVE_ITERATOR_HPP
+#define CUMULATIVE_ITERATOR_HPP
+
 #include <cstddef>
 
 namespace iterators {
@@ -56,3 +59,5 @@ class cumulative_iterator
 };
 
 } // namespace iterators
+
+#endif // CUMULATIVE_ITERATOR_HPP

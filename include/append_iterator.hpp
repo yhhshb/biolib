@@ -1,3 +1,6 @@
+#ifndef APPEND_ITERATOR_HPP
+#define APPEND_ITERATOR_HPP
+
 #include <cinttypes>
 #include <cstddef>
 #include <vector>
@@ -56,3 +59,5 @@ class append_iterator
 };
 
 } // namespace iterator
+
+#endif // APPEND_ITERATOR_HPP
