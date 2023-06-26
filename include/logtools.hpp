@@ -2,6 +2,8 @@
 #define LOGTOOLS_HPP
 
 #include <cstddef>
+#include <algorithm>
+#include <exception>
 #include <vector>
 #include <string>
 #include <chrono>
