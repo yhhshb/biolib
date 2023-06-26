@@ -42,6 +42,7 @@ set(BIOLIB_SOURCES
   src/io.cpp
   src/hash.cpp
   src/elias_fano.cpp
+  src/logtools.cpp
   bundled/MurmurHash3.cpp
 )
 
@@ -63,8 +64,9 @@ if (MAKE_TESTS)
   add_executable(itr_test tests/iterators_test.cpp)
   add_executable(bv_test tests/test_bit_vector.cpp)
   add_executable(pv_test tests/test_packed_vector.cpp)
-  add_executable(rs_test tests/test_rank_select.cpp)
+  add_executable(rs_test tests/test_rank_select.cpp ${BIOLIB_SOURCES})
   add_executable(ef_test tests/test_elias_fano.cpp ${BIOLIB_SOURCES})
+  add_executable(timer_test tests/test_timer.cpp)
 
   add_executable(popcount_test tests/test_popcount.cpp)
   add_executable(traits_examples tests/traits_examples.cpp bundled/MurmurHash3.cpp)
