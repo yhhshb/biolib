@@ -5,6 +5,7 @@
 
 #include "../include/elias_fano.hpp"
 #include "../include/cumulative_iterator.hpp"
+#include "../include/io.hpp"
 
 int main()
 {
@@ -39,6 +40,15 @@ int main()
         // std::cerr << "retrieved diff = " << diff_ef << ", true value = " << sequence.at(i) << "\n";
         if (diff_ef != sequence.at(i)) throw runtime_error("FAIL");
     }
+
+    { // Check writing and reading
+        std::string sname = "tmp.bin";
+        auto copy = ef_sequence;
+        io::store(ef_sequence, sname);
+        ef_sequence = io::load<decltype(ef_sequence)>(sname);
+        assert(copy == ef_sequence);
+    }
+
     std::cerr << "Everything is OK\n";
     return 0;
 }

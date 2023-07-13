@@ -13,8 +13,10 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         using bv_type = bit::vector<uint64_t>;
 
         array(bit::vector<uint64_t>&& vector);
-        array(array const&) = default;
-        array(array&&) = default;
+        array(array const&) noexcept = default;
+        array(array&&) noexcept = default;
+        array& operator=(array const&) noexcept = default;
+        array& operator=(array&&) noexcept = default;
         std::size_t rank1(std::size_t idx) const;
         std::size_t rank0(std::size_t idx) const {return idx - rank1();}
         std::size_t select1(std::size_t th) const;
@@ -29,10 +31,10 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         // void swap(array& other);
 
         template <class Visitor>
-        void visit(Visitor& visitor);
-
-        template <class Visitor>
         void visit(Visitor& visitor) const;
+
+        template <class Loader>
+        static array load(Loader& visitor);
 
     private:
         static const std::size_t block_bit_size = 64;
@@ -41,9 +43,10 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         static const uint64_t select_zeros_per_hint = select_ones_per_hint;
         static const uint64_t ones_step_9 = 1ULL << 0 | 1ULL << 9 | 1ULL << 18 | 1ULL << 27 | 1ULL << 36 | 1ULL << 45 | 1ULL << 54;
         static const uint64_t msbs_step_9 = 0x100ULL * ones_step_9;
-        bit::vector<uint64_t> const _data;
+        bit::vector<uint64_t> _data;
         std::vector<uint64_t> interleaved_blocks;
 
+        array();
         void build_index();
         inline std::vector<uint64_t> const& payload() const noexcept {return _data.vector_data();}
         inline std::size_t super_blocks_size() const {return interleaved_blocks.size() / 2 - 1;}
@@ -61,7 +64,26 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         inline static uint64_t uleq_step_9(uint64_t x, uint64_t y) {
             return (((((y | msbs_step_9) - (x & ~msbs_step_9)) | (x ^ y)) ^ (x & ~y)) & msbs_step_9) >> 8;
         }
+
+        friend bool operator==(array const& a, array const& b) 
+        {
+            bool same_data = a._data == b._data;
+            bool same_interleaved_blocks = a.interleaved_blocks == b.interleaved_blocks;
+            bool result = same_data and same_interleaved_blocks;
+            if constexpr (with_select_hints) {
+                result &= a.hints == b.hints;
+            }
+            return result;
+        };
+        friend bool operator!=(array const& a, array const& b) {return not (a == b);};
+
+        template <class Visitor>
+        void visit(Visitor& visitor);
 };
+
+template <bool with_select_hints>
+array<bit::vector<uint64_t>, 64, 8, with_select_hints>::array()
+{}
 
 template <bool with_select_hints>
 array<bit::vector<uint64_t>, 64, 8, with_select_hints>::array(bit::vector<uint64_t>&& vector)
@@ -240,6 +262,19 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::visit(Visitor& visitor) 
     visitor.apply(_data);
     visitor.apply(interleaved_blocks);
     if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+}
+
+template <bool with_select_hints>
+template <class Loader>
+array<bit::vector<uint64_t>, 64, 8, with_select_hints>
+array<bit::vector<uint64_t>, 64, 8, with_select_hints>::load(Loader& visitor)
+{
+    array<bit::vector<uint64_t>, 64, 8, with_select_hints> r;
+    // r.visit(visitor);
+    r._data = decltype(r._data)::load(visitor);
+    visitor.apply(r.interleaved_blocks);
+    if constexpr (with_select_hints) visitor.apply(r.hints);
+    return r;
 }
 
 } // namespace rs

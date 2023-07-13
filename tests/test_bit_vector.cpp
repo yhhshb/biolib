@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cassert>
 #include "../include/bit_vector.hpp"
+#include "../include/io.hpp"
 
 template <typename T>
 void check_bit_vector(size_t seed, size_t vector_size, size_t insertions);
@@ -66,6 +67,14 @@ void check_bit_vector(size_t seed, size_t vector_size, size_t insertions)
             // std::cerr << "i = " << i << ", v = " << v << ", a = " << a << "\n";
             assert(v == a);
         }
+    }
+
+    { // Check writing and reading
+        std::string sname = "tmp.bin";
+        auto copy = bvec;
+        io::store(bvec, sname);
+        bvec = io::load<bit::vector<T>>(sname);
+        assert(copy == bvec);
     }
 
     for (std::size_t i = 0; i < insertions; ++i) { // check method clear(idx)

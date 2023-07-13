@@ -15,8 +15,10 @@ class vector
 {
     public:
         vector(std::size_t bitwidth);
-        vector(vector const&) = default;
-        constexpr vector(vector&&) noexcept = default;
+        vector(vector const&) noexcept = default;
+        vector(vector&&) noexcept = default;
+        vector& operator=(vector const&) noexcept = default;
+        vector& operator=(vector&&) noexcept = default;
 
         template <typename T>
         void push_back(T val);
@@ -52,24 +54,44 @@ class vector
         void swap(vector& other);
 
         template <class Visitor>
-        void visit(Visitor& visitor);
-
-        template <class Visitor>
         void visit(Visitor& visitor) const;
+
+        template <class Loader>
+        static vector load(Loader& visitor);
 
     private:
         static constexpr std::size_t ut_bit_size = 8 * sizeof(UnderlyingType);
         std::vector<UnderlyingType> _data;
-        const std::size_t _bitwidth;
         std::size_t _size;
-
+        std::size_t _bitwidth;
+        
+        vector();
         std::tuple<std::size_t, long long> index_to_ut_coordinates(std::size_t idx) const noexcept;
+
+        friend bool operator==(vector const& a, vector const& b) 
+        {
+            bool same_bitwidth = a._bitwidth == b._bitwidth;
+            bool same_size = a._size == b._size;
+            return same_bitwidth and same_size and (a._data == b._data);
+        };
+        friend bool operator!=(vector const& a, vector const& b) {return not (a == b);};
+
+        template <class Visitor>
+        void visit(Visitor& visitor);
 };
 
 template <typename UnderlyingType>
+vector<UnderlyingType>::vector()
+    : _size(0),
+      _bitwidth(0)
+{
+    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
+}
+
+template <typename UnderlyingType>
 vector<UnderlyingType>::vector(std::size_t bitwidth)
-    : _bitwidth(bitwidth), 
-      _size(0)
+    : _size(0),
+      _bitwidth(bitwidth)
 {
     if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
 }
@@ -279,6 +301,7 @@ vector<UnderlyingType>::visit(Visitor& visitor)
 {
     visitor.apply(_data);
     visitor.apply(_size);
+    visitor.apply(_bitwidth);
 }
 
 template <typename UnderlyingType>
@@ -288,6 +311,17 @@ vector<UnderlyingType>::visit(Visitor& visitor) const
 {
     visitor.apply(_data);
     visitor.apply(_size);
+    visitor.apply(_bitwidth);
+}
+
+template <typename UnderlyingType>
+template <class Loader>
+vector<UnderlyingType> 
+vector<UnderlyingType>::load(Loader& visitor)
+{
+    vector<UnderlyingType> r;
+    r.visit(visitor);
+    return r;
 }
 
 } // namespace packed

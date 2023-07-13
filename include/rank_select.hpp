@@ -24,8 +24,10 @@ class array : protected select_hints<with_select_hints>
         using bv_type = BitVector;
 
         array(BitVector&& vector);
-        array(array const&) = default;
-        array(array&&) = default;
+        array(array const&) noexcept= default;
+        array(array&&) noexcept = default;
+        array& operator=(array const&) noexcept = default;
+        array& operator=(array&&) noexcept = default;
         std::size_t rank1(std::size_t idx) const;
         std::size_t rank0(std::size_t idx) const;
         std::size_t select1(std::size_t idx) const;
@@ -40,22 +42,45 @@ class array : protected select_hints<with_select_hints>
         // void swap(array& other);
 
         template <class Visitor>
-        void visit(Visitor& visitor);
-
-        template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Loader>
+        static array load(Loader& visitor);
+
     private:
-        BitVector const _data;
+        BitVector _data;
         packed::vector<max_width_native_type> blocks;
         packed::vector<max_width_native_type> super_blocks;
 
+        array();
         void build_index();
 
-        // TODO:
+        friend bool operator==(array const& a, array const& b) 
+        {
+            bool same_data = a._data == b._data;
+            bool same_blocks = a.blocks == b.blocks;
+            bool same_super_blocks = a.super_blocks == b.super_blocks;
+            bool result = same_data and same_blocks and same_super_blocks;
+            if constexpr (with_select_hints) {
+                result &= a.hints == b.hints;
+            }
+            return result;
+        };
+        friend bool operator!=(array const& a, array const& b) {return not (a == b);};
+
+        template <class Visitor>
+        void visit(Visitor& visitor);
+
+        // IMPROVEMENTS:
         // - pack each super-block and its blocks together in order to improve locality
         // - Write specialized class for above problem, replacing the packed vectors 
 };
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::array()
+    : blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
+      super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
+{}
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::array(BitVector&& vector) 
@@ -252,6 +277,19 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::vis
     visitor.apply(blocks);
     visitor.apply(super_blocks);
     if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+}
+
+template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+template <class Loader>
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints> 
+array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::load(Loader& visitor)
+{
+    array<BitVector, block_bit_size, super_block_block_size, with_select_hints> r;
+    r._data = decltype(r._data)::load(visitor);
+    r.blocks = decltype(r.blocks)::load(visitor);
+    r.super_blocks = decltype(r.super_blocks)::load(visitor);
+    if constexpr (with_select_hints) visitor.apply(r.hints);
+    return r;
 }
 
 } // namespace rs

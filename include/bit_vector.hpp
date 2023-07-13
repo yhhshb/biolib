@@ -78,8 +78,10 @@ class vector
 
         vector() noexcept;
         vector(std::size_t size, bool val = false);
-        vector(vector const&) = default;
-        vector(vector&&) = default;
+        vector(vector const&) noexcept = default;
+        vector(vector&&) noexcept = default;
+        vector& operator=(vector const&) noexcept = default;
+        vector& operator=(vector&&) noexcept = default;
         void reserve(std::size_t capacity);
         void resize(std::size_t size);
         void resize(std::size_t size, bool value);
@@ -120,28 +122,38 @@ class vector
         void swap(vector& other);
 
         template <class Visitor>
-        void visit(Visitor& visitor);
-
-        template <class Visitor>
         void visit(Visitor& visitor) const;
+
+        template <class Loader>
+        static vector load(Loader& visitor);
         
     private:
-        const std::size_t block_bit_size;
-        std::size_t bsize;
+        static constexpr std::size_t block_bit_size = 8 * sizeof(UnsignedIntegerType);
         std::vector<UnsignedIntegerType> _data;
+        std::size_t bsize;
 
         std::size_t bit_to_byte_size(std::size_t bit_size) const noexcept;
         std::tuple<std::size_t, std::size_t> idx_to_coordinates(std::size_t idx) const;
+
+        friend bool operator==(vector const& a, vector const& b) 
+        {
+            bool same_size = a.bsize == b.bsize;
+            return same_size and (a._data == b._data);
+        };
+        friend bool operator!=(vector const& a, vector const& b) {return not (a == b);};
+
+        template <class Visitor>
+        void visit(Visitor& visitor);
 };
 
 template <typename UnsignedIntegerType>
 vector<UnsignedIntegerType>::vector() noexcept 
-    : block_bit_size(sizeof(UnsignedIntegerType) * 8), bsize(0)
+    : bsize(0)
 {}
 
 template <typename UnsignedIntegerType>
 vector<UnsignedIntegerType>::vector(std::size_t size, bool val) 
-    : block_bit_size(sizeof(UnsignedIntegerType) * 8), bsize(size)
+    : bsize(size)
 {
     _data.resize(bit_to_byte_size(bsize), static_cast<UnsignedIntegerType>(val));
 }
@@ -368,7 +380,6 @@ void
 vector<UnsignedIntegerType>::swap(vector& other)
 {
     _data.swap(other._data);
-    // std::swap(block_bit_size, other.block_bit_size);
     std::swap(bsize, other.bsize);
 }
 
@@ -395,8 +406,8 @@ template <class Visitor>
 void 
 vector<UnsignedIntegerType>::visit(Visitor& visitor)
 {
-    visitor.apply(bsize);
     visitor.apply(_data);
+    visitor.apply(bsize);
 }
 
 template <typename UnsignedIntegerType>
@@ -404,8 +415,18 @@ template <class Visitor>
 void 
 vector<UnsignedIntegerType>::visit(Visitor& visitor) const
 {
-    visitor.apply(bsize);
     visitor.apply(_data);
+    visitor.apply(bsize);
+}
+
+template <typename UnsignedIntegerType>
+template <class Loader>
+vector<UnsignedIntegerType> 
+vector<UnsignedIntegerType>::load(Loader& visitor)
+{
+    vector<UnsignedIntegerType> r;
+    r.visit(visitor);
+    return r;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -6,6 +6,7 @@
 
 #include "../include/bit_vector.hpp"
 #include "../include/rank_select.hpp"
+#include "../include/io.hpp"
 
 #include "../include/constants.hpp"
 
@@ -95,6 +96,14 @@ void check_rs(size_t seed, size_t vector_size, size_t insertions)
         auto idx = rs_vec.select1(i);
         // std::cerr << "select [" << i << "] = " << idx << "(true answer = " << inserted.at(i) << ")\n";
         if (idx != inserted.at(i)) throw std::runtime_error("[select] FAIL");
+    }
+
+    {
+        std::string sname = "tmp.bin";
+        auto copy = rs_vec;
+        io::store(rs_vec, sname);
+        rs_vec = io::load<decltype(rs_vec)>(sname);
+        assert(copy == rs_vec);
     }
 
     std::cerr << "rank/select size = " << rs_vec.bit_size() << "\n";

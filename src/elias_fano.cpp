@@ -10,8 +10,6 @@ array::at(std::size_t idx) const
     return ((msbrs.select1(idx) - idx) << lsb.bit_width()) | lsb.template at<uint64_t>(idx);
 }
 
-
-
 std::size_t
 array::diff_at(std::size_t idx) const
 {
@@ -50,6 +48,18 @@ array::prev_and_at(std::size_t idx) const
     auto val2 = (h2 << l) | low2;
     // std::cerr << "[end] prev_and_at:" << "\n";
     return {val1, val2};
+}
+
+bool operator==(array const& a, array const& b) 
+{
+    bool same_msb = a.msbrs == b.msbrs;
+    bool same_lsb = a.lsb == b.lsb;
+    return same_msb and same_lsb;
+}
+
+bool operator!=(array const& a, array const& b) 
+{
+    return not (a == b);
 }
 
 } // namespace ef

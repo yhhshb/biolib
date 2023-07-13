@@ -123,10 +123,10 @@ class saver
         saver(std::ostream& output_stream);
         
         template <typename T>
-        void apply(T& var);
+        void apply(T const& var);
 
         template <typename T, class Allocator>
-        void apply(std::vector<T, Allocator>& vec);
+        void apply(std::vector<T, Allocator> const& vec);
 
         std::size_t get_byte_size() const {return ostrm.tellp();}
 
@@ -135,7 +135,7 @@ class saver
 };
 
 template <typename T>
-void saver::apply(T& var) 
+void saver::apply(T const& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(var, ostrm);
@@ -145,7 +145,7 @@ void saver::apply(T& var)
 }
 
 template <typename T, typename Allocator>
-void saver::apply(std::vector<T, Allocator>& vec) 
+void saver::apply(std::vector<T, Allocator> const& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(vec, ostrm);
@@ -171,6 +171,14 @@ static std::size_t load(T& data_structure, std::string filename)
 {
     std::ifstream strm(filename, std::ios::binary);
     return visit<loader, T>(data_structure, strm);
+}
+
+template <typename T>
+static T load(std::string filename)
+{
+    std::ifstream istrm(filename, std::ios::binary);
+    loader ldr(istrm);
+    return T::load(ldr);
 }
 
 template <typename T>

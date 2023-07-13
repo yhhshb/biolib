@@ -20,8 +20,10 @@ class array
         template <class Iterator>
         array(Iterator start, std::size_t n, std::size_t u);
 
-        array(array const& other) = default;
-        array(array&& other) = default;
+        array(array const& other) noexcept = default;
+        array(array&& other) noexcept = default;
+        array& operator=(array const&) noexcept = default;
+        array& operator=(array&&) noexcept = default;
 
         std::size_t at(std::size_t idx) const; // access prefix-sum
         std::size_t diff_at(std::size_t idx) const; // access difference
@@ -30,6 +32,9 @@ class array
 
         template <class Visitor>
         void visit(Visitor& visitor) const;
+
+        template <class Loader>
+        static array load(Loader& visitor);
 
     protected:
         using bv_t = bit::vector<max_width_native_type>;
@@ -42,6 +47,9 @@ class array
     private:
         rs_t msbrs;
         pv_t lsb;
+
+        array() : msbrs(bv_t(0)), lsb(0) {}
+        array(build_t pack) : msbrs(pack.first), lsb(pack.second) {} // dummy constructor for const members
 
         template <class Iterator>
         static build_t build(Iterator start, std::size_t n, std::size_t u); // main construction function
@@ -64,7 +72,8 @@ class array
         template <class Iterator>
         static build_t build(Iterator start, Iterator stop);
 
-        array(build_t pack) : msbrs(pack.first), lsb(pack.second) {} // dummy constructor for const members
+        friend bool operator==(array const& a, array const& b);
+        friend bool operator!=(array const& a, array const& b);
 };
 
 template <class Iterator>
@@ -182,6 +191,24 @@ array::build(Iterator start, Iterator stop)
 {
     typedef typename std::iterator_traits<Iterator>::iterator_category category;
     return build(start, stop, category());
+}
+
+template <class Visitor>
+void 
+array::visit(Visitor& visitor) const
+{
+    visitor.apply(msbrs);
+    visitor.apply(lsb);
+}
+
+template <class Loader>
+array 
+array::load(Loader& visitor)
+{
+    array r;
+    r.msbrs = decltype(r.msbrs)::load(visitor);
+    r.lsb = decltype(r.lsb)::load(visitor);
+    return r;
 }
 
 #undef BUILD_T

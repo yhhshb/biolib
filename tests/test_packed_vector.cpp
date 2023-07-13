@@ -4,6 +4,7 @@
 #include <cassert>
 #include "../bundled/prettyprint.hpp"
 #include "../include/packed_vector.hpp"
+#include "../include/io.hpp"
 
 template <std::size_t L, typename T>
 void check_packed_vector(size_t seed, size_t vector_size);
@@ -180,5 +181,14 @@ void check_packed_vector(size_t seed, size_t vector_size)
         // std::cerr << check.at(i) << "\n";
         assert(pv.template at<T>(i) == check.at(i));
     }
+
+    {
+        std::string sname = "tmp.bin";
+        auto copy = pv;
+        io::store(pv, sname);
+        pv = io::load<bit::packed::vector<T>>(sname);
+        assert(copy == pv);
+    }
+
     std::cerr << "bit width " << L << " over " << sizeof(T) * 8 << ", done\n";
 }
