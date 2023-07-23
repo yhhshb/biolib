@@ -13,8 +13,8 @@ class member_iterator
         using iterator_category = typename Iterator::iterator_category;
         using difference_type   = typename Iterator::difference_type;
         using value_type        = typename std::invoke_result<Function, typename Iterator::value_type>::type;
-        using pointer           = typename Iterator::pointer;
-        using reference         = typename Iterator::reference;
+        using pointer           = value_type*;
+        using reference         = value_type&;
 
         member_iterator(Iterator itr, Function member_access) 
             : hidden(itr), access(member_access)
