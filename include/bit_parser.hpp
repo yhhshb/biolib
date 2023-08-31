@@ -14,14 +14,13 @@ class parser
 
         UnsignedIntegerType parse_fixed(std::size_t l);
         std::size_t parse_0();
-        std::size_t next(); // ?
+        std::size_t next_1();
 
-        void reset(std::size_t nidx);
         std::size_t get_bit_index() const noexcept;
+        void reset(std::size_t nidx);
+        void reset_and_clear_low_bits(std::size_t nidx);
         
     private:
-        
-        void reset_and_clear_low_bits(std::size_t nidx);
         void fill_buf();
         UnsignedIntegerType get_next_block() const;
 
@@ -85,7 +84,7 @@ parser<UnsignedIntegerType>::parse_0()
 
 template <typename UnsignedIntegerType>
 std::size_t 
-parser<UnsignedIntegerType>::next()
+parser<UnsignedIntegerType>::next_1()
 {
     std::optional<std::size_t> pos_in_word = std::nullopt;
     auto buf = buffer;
