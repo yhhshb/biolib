@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstring>
 #include <array>
+#include <optional>
 #include <cassert>
 
 namespace bit {
@@ -39,6 +40,40 @@ static const std::array<uint8_t, 256> popvalues = {
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
 };
+
+template <typename T>
+inline std::size_t size() {return 8 * sizeof(T);}
+
+template <typename T>
+inline std::size_t size(T x) 
+{
+    return 8 * sizeof(T);
+}
+
+/*
+    Good reference for built-in functions:
+    http://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
+*/
+
+/* position of the least significant bit (lsb) */
+static inline std::size_t lsbll(unsigned long long x) 
+{
+    assert(x > 0);              // if x is 0, the result is undefined
+    return __builtin_ctzll(x);  // count trailing zeros (ctz)
+}
+
+/* position of the most significant bit (msb) */
+template <typename T>
+static inline std::size_t msbll(T x)
+{
+    return ::bit::size(x) - 1 - lsbll(x);  // count leading zeros (clz)
+}
+
+inline std::optional<std::size_t> lsb(unsigned long long x) 
+{
+    if (x) return static_cast<std::size_t>(__builtin_ctzll(x));
+    return std::nullopt;
+}
 
 #if defined(__cplusplus) && (__cplusplus >= 202002L)
 template <typename T>
@@ -257,6 +292,12 @@ inline std::size_t rank(Vector vec, std::size_t stop, std::size_t start = 0)
     const std::size_t byte_start = start * sizeof(typename Vector::value_type);
     const std::size_t byte_stop = stop * sizeof(typename Vector::value_type);
     return rank(reinterpret_cast<uint8_t const *>(&vec.data()[byte_start]), byte_stop);
+}
+
+template <typename T>
+inline std::size_t size(std::vector<T> v) 
+{
+    return 8 * sizeof(T) * v.size();
 }
 
 } // namespace bit

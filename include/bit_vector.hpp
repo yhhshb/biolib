@@ -96,7 +96,7 @@ class vector
         bool at(std::size_t idx) const;
         bool front() const;
         bool back() const;
-        bool empty() const;
+        bool empty() const noexcept;
 
         UnsignedIntegerType& operator[](std::size_t idx);
         UnsignedIntegerType const& block_at(std::size_t idx) const;
@@ -222,7 +222,7 @@ template <typename UnsignedIntegerType>
 bool 
 vector<UnsignedIntegerType>::pop_back()
 {
-    if (bsize == 0) throw std::out_of_range("[pop_back]");
+    if (bsize == 0) throw std::out_of_range("[bit::vector::pop_back]");
     bool res = at(bsize - 1);
     --bsize;
     return res;
@@ -268,7 +268,7 @@ vector<UnsignedIntegerType>::back() const
 
 template <typename UnsignedIntegerType>
 bool 
-vector<UnsignedIntegerType>::empty() const
+vector<UnsignedIntegerType>::empty() const noexcept
 {
     return bsize == 0;
 }
@@ -395,7 +395,7 @@ template <typename UnsignedIntegerType>
 std::tuple<std::size_t, std::size_t> 
 vector<UnsignedIntegerType>::idx_to_coordinates(std::size_t idx) const
 {
-    if (idx >= bsize) throw std::out_of_range("[(bit) vector] index to block coordinates");
+    if (idx >= bsize) throw std::out_of_range("[bit::vector] index to block coordinates");
     std::size_t block_idx = idx / block_bit_size;
     std::size_t bit_idx = idx % block_bit_size;
     return std::make_tuple(block_idx, bit_idx);
@@ -435,7 +435,7 @@ template <class UnsignedIntegerType>
 vector<UnsignedIntegerType>::const_iterator::const_iterator(vector const& vec, std::size_t ref_idx)
     : parent_vector(vec), idx(ref_idx)
 {
-    if (idx > parent_vector.bsize) throw std::out_of_range("[bit vector const_iterator]");
+    if (idx > parent_vector.bsize) throw std::out_of_range("[bit::vector::const_iterator]");
     if (idx != parent_vector.bsize) {
         auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
         buffer = parent_vector._data.at(block_idx);

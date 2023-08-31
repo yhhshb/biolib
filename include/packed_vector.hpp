@@ -85,7 +85,7 @@ vector<UnderlyingType>::vector()
     : _size(0),
       _bitwidth(0)
 {
-    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
+    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying object type");
 }
 
 template <typename UnderlyingType>
@@ -93,7 +93,7 @@ vector<UnderlyingType>::vector(std::size_t bitwidth)
     : _size(0),
       _bitwidth(bitwidth)
 {
-    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying aobject type");
+    if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying object type");
 }
 
 template <typename UnderlyingType>
