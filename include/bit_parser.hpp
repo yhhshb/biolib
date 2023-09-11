@@ -139,8 +139,8 @@ parser<UnsignedIntegerType>::get_next_block() const
     std::size_t block = idx / 64;
     std::size_t shift = idx % 64;
     if (idx >= _size) throw std::out_of_range("[bit::parser] index out of range");
-    UnsignedIntegerType word = m_data[block] >> shift;
-    if (shift and block + 1 < _size) word |= m_data[block + 1] << (64 - shift);
+    UnsignedIntegerType word = _data[block] >> shift;
+    if (shift and block + 1 < _size) word |= _data[block + 1] << (64 - shift);
     return word;
 }
 

@@ -135,7 +135,7 @@ template <typename UnsignedIntegerType>
 static inline std::size_t rice(parser<UnsignedIntegerType>& parsr, const uint64_t k) 
 {
     assert(k > 0);
-    auto q = gamma(it);
+    auto q = gamma(parsr);
     auto r = parsr.parse_fixed(k);
     return r + (q << k);
 }
