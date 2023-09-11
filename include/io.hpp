@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <string>
 #include <fstream>
 
 namespace io {
@@ -37,6 +38,17 @@ static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& ve
     return bytes_read;
 }
 
+static std::size_t basic_load(std::istream& istrm, std::string& s)
+{
+    std::size_t n;
+    basic_load(istrm, n);
+    s.resize(n);
+    std::size_t bytes_read = sizeof(n);
+    for (auto& c : s) bytes_read += basic_load(istrm, c);
+    // istrm.read(reinterpret_cast<char*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
+    return bytes_read;
+}
+
 //-----------------------------------------------------------------------------------------------------------------------
 
 template <typename T>
@@ -58,6 +70,15 @@ static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostrea
     return bytes_written;
 }
 
+static std::size_t basic_store(std::string const& s, std::ostream& ostrm)
+{
+    std::size_t n = s.size();
+    std::size_t bytes_written = basic_store(n, ostrm);
+    for (auto const& c : s) bytes_written += basic_store(c, ostrm);
+    // ostrm.write(reinterpret_cast<char const*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
+    return bytes_written;
+}
+
 //-------------------------------------------------------------------------------------------------------------------------
 
 class loader 
@@ -70,6 +91,8 @@ class loader
 
         template <typename T, class Allocator>
         void apply(std::vector<T, Allocator>& vec);
+
+        void apply(std::string& s);
 
         std::size_t get_byte_size() const {return istrm.tellg();}
         std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
@@ -113,7 +136,13 @@ void loader::apply(std::vector<T, Allocator>& vec)
         for (auto& v : vec) apply(v); // Call apply(), not load() since we want to recursively count the number of bytes
         // [[maybe unused]] load(vec);
     }
-} 
+}
+
+void loader::apply(std::string& s)
+{
+    auto nr = basic_load(istrm, s);
+    num_bytes_vecs_of_pods += nr;
+}
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
@@ -127,6 +156,8 @@ class saver
 
         template <typename T, class Allocator>
         void apply(std::vector<T, Allocator> const& vec);
+
+        void apply(std::string const& s);
 
         std::size_t get_byte_size() const {return ostrm.tellp();}
 
@@ -154,6 +185,11 @@ void saver::apply(std::vector<T, Allocator> const& vec)
         apply(n);
         for (auto& v : vec) apply(v);
     }
+}
+
+void saver::apply(std::string const& s) 
+{
+    basic_store(s, ostrm);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
