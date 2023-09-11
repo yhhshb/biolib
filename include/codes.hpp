@@ -117,8 +117,8 @@ static inline UnsignedIntegerType binary(parser<UnsignedIntegerType>& parsr, std
     return x; // read b=ceil(log2(r+1)) bits and interprets them as the integer x
 }
 
-template <typename UnsignedIntegerType1, typename UnsignedIntegerType2>
-static inline std::size_t gamma(parser<UnsignedIntegerType1>& parsr) 
+template <typename UnsignedIntegerType>
+static inline std::size_t gamma(parser<UnsignedIntegerType>& parsr) 
 {
     std::size_t b = unary(parsr);
     return (static_cast<std::size_t>(parsr.parse_fixed(b)) | (std::size_t(1) << b)) - 1;
