@@ -1,21 +1,22 @@
 #ifndef MINIMIZER_VIEW_HPP
 #define MINIMIZER_VIEW_HPP
 
+#include <string>
 #include "constants.hpp"
 
 namespace wrapper {
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 class minimizer_view
 {
     public:
         class const_iterator
         {
             public:
-                struct minimizer_t {
-                    MinimizerType minimizer; // 2-bit packed minimizer
-                    uint32_t mm_idx;         // minimizer index in contig
-                    uint32_t id;             // minimizer id in contig
+                struct minimizer_context_t {
+                    MinimizerType value; // 2-bit packed minimizer
+                    std::size_t position; // minimizer index from start
+                    std::size_t id; // unique id for current view
                 };
                 using iterator_category = std::forward_iterator_tag;
                 using difference_type   = std::ptrdiff_t;
@@ -25,7 +26,7 @@ class minimizer_view
 
                 const_iterator(minimizer_view const* view);
                 const_iterator(minimizer_view const* view, int dummy_end);
-                minimizer_t const& operator*() const noexcept;
+                minimizer_context_t const& operator*() const noexcept;
                 const_iterator const& operator++();
                 const_iterator operator++(int);
                 std::size_t break_offset() const noexcept;
@@ -58,19 +59,20 @@ class minimizer_view
                 };
 
                 minimizer_view const* parent_view;
-                std::size_t char_idx;
-                MinimizerType mask;
-                std::size_t shift;
+                Iterator itr;
                 uint8_t strand;
                 std::size_t bases_since_last_break;
+                std::size_t position;
                 std::size_t mmer_count;
-                MinimizerType mm_forward_reverse[2];
                 window buffer;
+                MinimizerType mask;
+                std::size_t shift;
+                MinimizerType mm_forward_reverse[2];
                 std::size_t read_base();
                 void init_window();
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) {
-                    return a.parent_view == b.parent_view and a.char_idx == b.char_idx;
+                    return a.parent_view == b.parent_view and a.itr == b.itr;
                 }
 
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {
@@ -78,181 +80,89 @@ class minimizer_view
                 }
         };
 
-        minimizer_view(char const* contig, std::size_t contig_len, uint8_t k, uint8_t m, bool canonical = false) noexcept;
-        minimizer_view(std::string const& contig, uint8_t k, uint8_t m, bool canonical = false) noexcept;
+        // minimizer_view(char const* contig, std::size_t contig_len, uint8_t k, uint8_t m, bool canonical = false) noexcept;
+        // minimizer_view(std::string const& contig, uint8_t k, uint8_t m, bool canonical = false) noexcept;
+        minimizer_view(Iterator start, Iterator stop, uint8_t k, uint8_t m, bool canonical = false);
         const_iterator cbegin() const;
         const_iterator cend() const noexcept;
         uint8_t get_k() const noexcept;
         uint8_t get_m() const noexcept;
 
     private:
-        char const* seq;
-        std::size_t slen;
+        // char const* seq;
+        // std::size_t slen;
+        Iterator itr_start;
+        Iterator itr_stop;
         uint8_t klen;
         uint8_t mlen;
         bool canon;
 };
 
-//---------------------------------------------------------------------------------------------------------------------------------------------------
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::window(std::size_t maximum_size) noexcept
-{
-    clear();
-    buffer.resize(maximum_size);
+template <typename KmerType, typename MmerType, typename HashFunction>
+minimizer_view<KmerType, MmerType, HashFunction, std::string::const_iterator> minimizer_view_from_string(const std::string& s, uint8_t k, uint8_t m, bool canonical) {
+    return minimizer_view<KmerType, MmerType, HashFunction, std::string::const_iterator> (s.cbegin(), s.cend(), k, m, canonical);
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-bool 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::push_back(mm_context_t elem)
-{
-    bool changed = false;
-    buffer.at(last) = elem;
-    if (buffer.at(last) < buffer.at(min_idx)) {
-        min_idx = last;
-        changed = true;
-    }
-    ++last;
-    last = ++last % buffer.size();
-    return changed;
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-bool 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::pop_back()
-{
-    bool recompute = false;
-    if (min_idx == last) recompute = true; 
-    if (last == 0) last = buffer.size();
-    --last;
-    if (recompute) find_new_min();
-    return recompute;
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-bool 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::pop_front()
-{
-    bool recompute = false;
-    if (first == min_idx) recompute = true;
-    first = (first + 1) % buffer.size();
-    if (recompute) find_new_min();
-    return recompute;
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-typename minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::mm_context_t const& 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::front() const
-{
-    return buffer.at(first);
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-typename minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::mm_context_t const& 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::back() const
-{
-    return buffer.at(last);
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-typename minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::mm_context_t const& 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::min() const
-{
-    return buffer.at(min_idx);
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-std::size_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::maximum_size() const noexcept
-{
-    return buffer.size();
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-std::size_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::size() const noexcept
-{
-    if (first <= last) return last - first;
-    return buffer.size() - (first - last);
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-std::size_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::min_shift() const noexcept
-{
-    if (first <= min_idx) return min_idx - first;
-    return buffer.size() - (first - min_idx);
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-void 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::clear() noexcept
-{
-    first = last = 0;
-    min_idx = 0;
-}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-void 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::window::find_new_min() const
-{
-    min_idx = first;
-    for (std::size_t i = first; i != last; ++i) {
-        i %= buffer.size();
-        if (buffer.at(i) < buffer.at(min_idx)) min_idx = i;
-    }
+template <typename KmerType, typename MmerType, typename HashFunction>
+minimizer_view<KmerType, MmerType, HashFunction, char_iterator> minimizer_view_from_cstr(char const* s, std::size_t len, uint8_t k, uint8_t m, bool canonical) {
+    return minimizer_view<KmerType, MmerType, HashFunction, char_iterator> (char_iterator(s), char_iterator(s + len), k, m, canonical);
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::minimizer_view(char const* contig, std::size_t contig_len, uint8_t k, uint8_t m, bool canonical = false) noexcept
-    : seq(contig), slen(contig_len), klen(k), mlen(m), canon(canonical)
+// template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+// minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::minimizer_view(char const* contig, std::size_t contig_len, uint8_t k, uint8_t m, bool canonical) noexcept
+//     : seq(contig), slen(contig_len), klen(k), mlen(m), canon(canonical)
+// {}
+
+// template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+// minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::minimizer_view(std::string const& contig, uint8_t k, uint8_t m, bool canonical) noexcept
+//     : seq(contig.c_str()), slen(contig.length()), klen(k), mlen(m), canon(canonical)
+// {}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::minimizer_view(Iterator start, Iterator stop, uint8_t k, uint8_t m, bool canonical) noexcept
+    : itr_start(start), itr_stop(stop), klen(k), mlen(m), canon(canonical)
 {}
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::minimizer_view(std::string const& contig, uint8_t k, uint8_t m, bool canonical = false) noexcept
-    : seq(contig.c_str()), slen(contig.length()), klen(k), mlen(m), canon(canonical)
-{}
-
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator 
-minimizer_view<KmerType, MinimizerType, HashFunction>::cbegin() const
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::cbegin() const
 {
     return const_iterator(this);
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator 
-minimizer_view<KmerType, MinimizerType, HashFunction>::cend() const noexcept
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::cend() const noexcept
 {
     return const_iterator(this, 0);
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 uint8_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::get_k() const noexcept
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::get_k() const noexcept
 {
     return klen;
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 uint8_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::get_m() const noexcept
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::get_m() const noexcept
 {
     return mlen;
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::const_iterator(minimizer_view const* view, int dummy_end)
-    : parent_view(view), char_idx(view->slen), strand(0), bases_since_last_break(0), mmer_count(0), buffer(0)
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::const_iterator(minimizer_view const* view, int dummy_end)
+    : parent_view(view), itr(parent_view->itr_stop), strand(0), bases_since_last_break(0), position(0), mmer_count(0), buffer(0)
 {}
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::const_iterator(minimizer_view const* view) 
-    : parent_view(view), char_idx(0), strand(0), bases_since_last_break(0), mmer_count(0), buffer(view->klen - view->mlen + 1)
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::const_iterator(minimizer_view const* view) 
+    : parent_view(view), itr(parent_view->itr_start), strand(0), bases_since_last_break(0), position(0), mmer_count(0), buffer(view->klen - view->mlen + 1)
 {
     if (parent_view->slen < parent_view->klen) throw std::runtime_error("Unable to initialize super-k-mer iterator on sequence of length " + std::to_string(parent_view->klen) + "with k = " + std::to_string(parent_view->klen) + " and m = " + std::to_string(parent_view->mlen));
     shift = 2 * (parent_view->mlen - 1);
@@ -261,30 +171,30 @@ minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::const_ite
     init_window();
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::minimizer_t const& 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator*() const noexcept
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::minimizer_context_t const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::operator*() const noexcept
 {
     return buffer.min();
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator const& 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator++()
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::operator++()
 {
     assert(parent_view);
-    assert(char_idx <= parent_view->slen);
+    assert(itr != parent_view->itr_stop);
 
-    if (char_idx < parent_view->slen) {
+    if (itr != parent_view->itr_stop) {
         bool new_min = false;
         do {
             auto idx = read_base();
             if (bases_since_last_break >= parent_view->mlen) [[likely]] {
                 typename window::mm_context_t ctx = {
                     {
-                        mm_forward_reverse[strand], // minimizer
-                        idx,
-                        mmer_count
+                        mm_forward_reverse[strand], // minimizer value
+                        idx, // position
+                        mmer_count // id
                     },
                     HashFunction(mm_forward_reverse[strand]) // hash
                 };
@@ -297,28 +207,28 @@ minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator+
     return *this;
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::operator++(int)
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::operator++(int)
 {
     minimizer_t res = *this;
     operator++();
     return res;
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 std::size_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::break_offset() const noexcept
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::break_offset() const noexcept
 {
     return bases_since_last_break;
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 std::size_t 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::read_base()
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::read_base()
 {
-    std::size_t mm_contig_idx = char_idx - parent_view->mlen + 1;
-    auto c = constants::seq_nt4_table.at(static_cast<uint8_t>(parent_view->seq[char_idx++]));
+    auto c = constants::seq_nt4_table.at(static_cast<uint8_t>(*itr++));
+    ++position;
     if (c < 4) [[likely]] {
         mm_forward_reverse[0] = (mm_forward_reverse[0] << 2 | c) & mask;            /* forward m-mer */
         mm_forward_reverse[1] = (mm_forward_reverse[1] >> 2) | (3ULL ^ c) << shift; /* reverse m-mer */
@@ -328,20 +238,20 @@ minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::read_base
         bases_since_last_break = 0;
         buffer.clear();
     }
-    return mm_contig_idx;
+    return position - parent_view->mlen + 1;
 }
 
-template <typename KmerType, typename MinimizerType, typename HashFunction>
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
 void 
-minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::init_window()
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::init_window()
 {
-    while(buffer.size() < buffer.maximum_size() and char_idx < parent_view->slen) {
+    while(buffer.size() < buffer.maximum_size() and itr != parent_view->itr_stop) {
         auto idx = read_base();
         if (bases_since_last_break >= parent_view->mlen) {
             typename window::mm_context_t ctx = {
                 {
-                    mm_forward_reverse[strand], // minimizer
-                    idx, // mm_idx
+                    mm_forward_reverse[strand], // minimizer value
+                    idx, // position
                     mmer_count // id
                 },
                 HashFunction(mm_forward_reverse[strand]) // hash
@@ -349,6 +259,116 @@ minimizer_view<KmerType, MinimizerType, HashFunction>::const_iterator::init_wind
             buffer.push_back(ctx);
             ++mmer_count;
         }
+    }
+}
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::window(std::size_t maximum_size) noexcept
+{
+    clear();
+    buffer.resize(maximum_size);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+bool 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::push_back(mm_context_t elem)
+{
+    bool changed = false;
+    buffer.at(last) = elem;
+    if (buffer.at(last) < buffer.at(min_idx)) {
+        min_idx = last;
+        changed = true;
+    }
+    ++last;
+    last = ++last % buffer.size();
+    return changed;
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+bool 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::pop_back()
+{
+    bool recompute = false;
+    if (min_idx == last) recompute = true; 
+    if (last == 0) last = buffer.size();
+    --last;
+    if (recompute) find_new_min();
+    return recompute;
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+bool 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::pop_front()
+{
+    bool recompute = false;
+    if (first == min_idx) recompute = true;
+    first = (first + 1) % buffer.size();
+    if (recompute) find_new_min();
+    return recompute;
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+typename minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::mm_context_t const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::front() const
+{
+    return buffer.at(first);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+typename minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::mm_context_t const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::back() const
+{
+    return buffer.at(last);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+typename minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::mm_context_t const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::min() const
+{
+    return buffer.at(min_idx);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+std::size_t 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::maximum_size() const noexcept
+{
+    return buffer.size();
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+std::size_t 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::size() const noexcept
+{
+    if (first <= last) return last - first;
+    return buffer.size() - (first - last);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+std::size_t 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::min_shift() const noexcept
+{
+    if (first <= min_idx) return min_idx - first;
+    return buffer.size() - (first - min_idx);
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+void 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::clear() noexcept
+{
+    first = last = 0;
+    min_idx = 0;
+}
+
+template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
+void 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::window::find_new_min() const
+{
+    min_idx = first;
+    for (std::size_t i = first; i != last; ++i) {
+        i %= buffer.size();
+        if (buffer.at(i) < buffer.at(min_idx)) min_idx = i;
     }
 }
 

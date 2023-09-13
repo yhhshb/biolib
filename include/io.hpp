@@ -38,7 +38,7 @@ static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& ve
     return bytes_read;
 }
 
-static std::size_t basic_load(std::istream& istrm, std::string& s)
+[[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::string& s)
 {
     std::size_t n;
     basic_load(istrm, n);
@@ -70,7 +70,7 @@ static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostrea
     return bytes_written;
 }
 
-static std::size_t basic_store(std::string const& s, std::ostream& ostrm)
+[[maybe_unused]] static std::size_t basic_store(std::string const& s, std::ostream& ostrm)
 {
     std::size_t n = s.size();
     std::size_t bytes_written = basic_store(n, ostrm);
@@ -138,12 +138,6 @@ void loader::apply(std::vector<T, Allocator>& vec)
     }
 }
 
-void loader::apply(std::string& s)
-{
-    auto nr = basic_load(istrm, s);
-    num_bytes_vecs_of_pods += nr;
-}
-
 //-------------------------------------------------------------------------------------------------------------------------------
 
 class saver 
@@ -185,11 +179,6 @@ void saver::apply(std::vector<T, Allocator> const& vec)
         apply(n);
         for (auto& v : vec) apply(v);
     }
-}
-
-void saver::apply(std::string const& s) 
-{
-    basic_store(s, ostrm);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------

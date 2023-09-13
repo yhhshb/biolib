@@ -45,7 +45,7 @@ template <typename T>
 inline std::size_t size() {return 8 * sizeof(T);}
 
 template <typename T>
-inline std::size_t size(T x) 
+inline std::size_t size([[maybe_unused]] T x) 
 {
     return 8 * sizeof(T);
 }

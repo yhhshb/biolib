@@ -39,11 +39,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(argparse)
 
 set(BIOLIB_SOURCES
-  src/io.cpp
-  src/hash.cpp
-  src/elias_fano.cpp
-  src/logtools.cpp
   bundled/MurmurHash3.cpp
+  src/io.cpp
+  src/elias_fano.cpp
+  src/kmer_view.cpp
+  src/logtools.cpp
 )
 
 add_library(biolib ${BIOLIB_SOURCES})

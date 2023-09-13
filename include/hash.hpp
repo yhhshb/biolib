@@ -70,22 +70,6 @@ class hash64
         }
 };
 
-class minimizer_position_extractor
-{
-    public:
-        using value_type = uint64_t;
-        minimizer_position_extractor(uint8_t k, uint8_t m);
-        std::size_t operator()(std::optional<uint64_t> kmer) const noexcept;
-        uint8_t get_k() const noexcept;
-        uint8_t get_m() const noexcept;
-
-    private:
-        uint8_t klen;
-        uint8_t mlen;
-        uint64_t mask;
-        hash64 hasher;
-};
-
 }
 
 #endif // HASH_HPP

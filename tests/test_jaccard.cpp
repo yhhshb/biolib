@@ -58,9 +58,9 @@ int main(int argc, char* argv[])
     if ((fp = gzopen(first_fasta.c_str(), "r")) == NULL) throw std::runtime_error("Unable to open the input file " + first_fasta + "\n");
     seq = kseq_init(fp);
     while (kseq_read(seq) >= 0) {
-        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k, canonical);
+        auto view = wrapper::kmer_view_from_cstr<kmer_t>(seq->seq.s, seq->seq.l, k, canonical);
         for (auto itr = view.cbegin(); itr != view.cend(); ++itr) {
-            if (*itr) kmer_vector_first.push_back(**itr);
+            if ((*itr).value) kmer_vector_first.push_back(*((*itr).value));
         }
     }
     if (seq) kseq_destroy(seq);
@@ -69,9 +69,9 @@ int main(int argc, char* argv[])
     if ((fp = gzopen(second_fasta.c_str(), "r")) == NULL) throw std::runtime_error("Unable to open the input file " + second_fasta + "\n");
     seq = kseq_init(fp);
     while (kseq_read(seq) >= 0) {
-        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, k, canonical);
+        auto view = wrapper::kmer_view_from_cstr<kmer_t>(seq->seq.s, seq->seq.l, k, canonical);
         for (auto itr = view.cbegin(); itr != view.cend(); ++itr) {
-            if (*itr) kmer_vector_second.push_back(**itr);
+            if ((*itr).value) kmer_vector_second.push_back(*((*itr).value));
         }
     }
     if (seq) kseq_destroy(seq);

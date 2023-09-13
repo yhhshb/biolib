@@ -81,4 +81,30 @@ template <typename> constexpr bool has_member_impl(...) { return false; }
 
 } // namespace constants
 
+class char_iterator
+{
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type        = char;
+        using pointer           = value_type*;
+        using reference         = value_type&;
+
+        char_iterator(char const* ptr) : internal(ptr) {}
+        value_type operator*() const noexcept {return *internal;}
+        char_iterator const& operator++() {
+            ++internal; 
+            return *this;
+        }
+        char_iterator operator++(int) {
+            auto res = *this;
+            operator++();
+            return res;
+        }
+    private:
+        char const* internal;
+        friend bool operator==(char_iterator const& a, char_iterator const& b) {return a.internal == b.internal;};
+        friend bool operator!=(char_iterator const& a, char_iterator const& b) {return not (a == b);};
+};
+
 #endif // CONSTANTS_HPP

@@ -33,9 +33,9 @@ int main(int argc, char* argv[])
     volatile kmer_t dummy;
 
     while (kseq_read(seq) >= 0) {
-        wrapper::kmer_view<kmer_t> view(seq->seq.s, seq->seq.l, 15, true);
+        auto view = wrapper::kmer_view_from_cstr<kmer_t>(seq->seq.s, seq->seq.l, 15, true);
         for (auto itr = view.cbegin(); itr != view.cend(); ++itr) {
-            if (*itr) dummy = **itr;
+            if ((*itr).value) dummy = *((*itr).value);
             dummy = dummy;
         }
     }
