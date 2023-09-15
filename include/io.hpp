@@ -94,6 +94,9 @@ class loader
 
         void apply(std::string& s);
 
+        template <typename T>
+        void visit(T& var) {apply(var);}
+
         std::size_t get_byte_size() const {return istrm.tellg();}
         std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
         std::size_t get_byte_size_of_vectors() const {return num_bytes_vecs_of_pods;}
@@ -159,6 +162,29 @@ class saver
         std::ostream& ostrm;
 };
 
+class mut_saver 
+{
+    public:
+        mut_saver(std::ostream& output_stream);
+
+        // non-const versions
+        template <typename T>
+        void apply(T& var);
+
+        template <typename T, class Allocator>
+        void apply(std::vector<T, Allocator>& vec);
+
+        void apply(std::string& s);
+
+        template <typename T>
+        void visit(T& var) {apply(var);}
+
+        std::size_t get_byte_size() const {return ostrm.tellp();}
+
+    private:
+        std::ostream& ostrm;
+};
+
 template <typename T>
 void saver::apply(T const& var) 
 {
@@ -171,6 +197,28 @@ void saver::apply(T const& var)
 
 template <typename T, typename Allocator>
 void saver::apply(std::vector<T, Allocator> const& vec) 
+{
+    if constexpr (std::is_fundamental<T>::value) {
+        basic_store(vec, ostrm);
+    } else {
+        size_t n = vec.size();
+        apply(n);
+        for (auto& v : vec) apply(v);
+    }
+}
+
+template <typename T>
+void mut_saver::apply(T& var) 
+{
+    if constexpr (std::is_fundamental<T>::value) {
+        basic_store(var, ostrm);
+    } else {
+        var.visit(*this);
+    }
+}
+
+template <typename T, typename Allocator>
+void mut_saver::apply(std::vector<T, Allocator>& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(vec, ostrm);

@@ -23,4 +23,9 @@ void saver::apply(std::string const& s)
     basic_store(s, ostrm);
 }
 
+void mut_saver::apply(std::string& s) 
+{
+    basic_store(s, ostrm);
+}
+
 } // namespace io
