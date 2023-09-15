@@ -17,7 +17,8 @@
 #include <type_traits>
 #include <string>
 
-namespace mm {
+namespace memory{
+namespace map {
 
 namespace advice {
     static const int normal = POSIX_MADV_NORMAL;
@@ -275,6 +276,7 @@ void file_sink<T>::open(std::string const& path, size_t n)
     *base::ref_count = 1;
 }
 
-} // namespace mm
+} // namespace map
+} // namespace memory
 
 #endif // MEMORY_MAPPED_FILE_HPP

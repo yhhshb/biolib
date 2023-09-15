@@ -64,7 +64,7 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
                 external_memory_vector<T, sorted> const* v;
                 std::vector<mm_loader_iterator> m_iterators;
                 std::vector<uint32_t> m_idx_heap;
-                std::vector<mm::file_source<uint8_t>> m_mm_files;
+                std::vector<memory::map::file_source<uint8_t>> m_mm_files;
                 std::function<bool(uint32_t, uint32_t)> heap_idx_comparator;
                 template <bool s = sorted>
                 typename std::enable_if<s, void>::type advance_heap_head();
@@ -231,7 +231,7 @@ external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memor
     m_mm_files.reserve(v->m_tmp_files.size());
     /* create the input iterators and make the heap */
     for (uint64_t i = 0; i != v->m_tmp_files.size(); ++i) {
-        m_mm_files.emplace_back(v->m_tmp_files.at(i), mm::advice::sequential);
+        m_mm_files.emplace_back(v->m_tmp_files.at(i), memory::map::advice::sequential);
         m_iterators.emplace_back(m_mm_files[i].data(), m_mm_files[i].data() + m_mm_files[i].size());
         m_idx_heap.push_back(i);
     }
