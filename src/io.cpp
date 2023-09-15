@@ -23,6 +23,11 @@ void saver::visit(std::string const& s)
     basic_store(s, ostrm);
 }
 
+mut_saver::mut_saver(std::ostream& output_stream) : ostrm(output_stream)
+{
+    if (!ostrm.good()) throw std::runtime_error("[Saver] Unreadable input stream");
+}
+
 void mut_saver::visit(std::string& s) 
 {
     basic_store(s, ostrm);
