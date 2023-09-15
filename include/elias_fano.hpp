@@ -197,8 +197,8 @@ template <class Visitor>
 void 
 array::visit(Visitor& visitor) const
 {
-    visitor.apply(msbrs);
-    visitor.apply(lsb);
+    visitor.visit(msbrs);
+    visitor.visit(lsb);
 }
 
 template <class Loader>

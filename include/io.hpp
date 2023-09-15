@@ -87,15 +87,12 @@ class loader
         loader(std::istream& input_stream);
 
         template <typename T>
-        void apply(T& var);
+        void visit(T& var);
 
         template <typename T, class Allocator>
-        void apply(std::vector<T, Allocator>& vec);
+        void visit(std::vector<T, Allocator>& vec);
 
-        void apply(std::string& s);
-
-        template <typename T>
-        void visit(T& var) {apply(var);}
+        void visit(std::string& s);
 
         std::size_t get_byte_size() const {return istrm.tellg();}
         std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
@@ -112,7 +109,7 @@ class loader
  * The amount of bytes read is also saved, extending the functionality of the load() functions. 
  */
 template <typename T>
-void loader::apply(T& var)
+void loader::visit(T& var)
 {
     if constexpr (std::is_fundamental<T>::value) {
         auto nr = basic_load(istrm, var);
@@ -127,16 +124,16 @@ void loader::apply(T& var)
  * This is to store their size separate from other types.
  */
 template <typename T, typename Allocator>
-void loader::apply(std::vector<T, Allocator>& vec)
+void loader::visit(std::vector<T, Allocator>& vec)
 {
     if constexpr (std::is_fundamental<T>::value) {
         auto nr = basic_load(istrm, vec);
         num_bytes_vecs_of_pods += nr;
     } else {
         std::size_t n;
-        apply(n);
+        visit(n);
         vec.resize(n);
-        for (auto& v : vec) apply(v); // Call apply(), not load() since we want to recursively count the number of bytes
+        for (auto& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
         // [[maybe unused]] load(vec);
     }
 }
@@ -149,12 +146,12 @@ class saver
         saver(std::ostream& output_stream);
         
         template <typename T>
-        void apply(T const& var);
+        void visit(T const& var);
 
         template <typename T, class Allocator>
-        void apply(std::vector<T, Allocator> const& vec);
+        void visit(std::vector<T, Allocator> const& vec);
 
-        void apply(std::string const& s);
+        void visit(std::string const& s);
 
         std::size_t get_byte_size() const {return ostrm.tellp();}
 
@@ -169,15 +166,12 @@ class mut_saver
 
         // non-const versions
         template <typename T>
-        void apply(T& var);
+        void visit(T& var);
 
         template <typename T, class Allocator>
-        void apply(std::vector<T, Allocator>& vec);
+        void visit(std::vector<T, Allocator>& vec);
 
-        void apply(std::string& s);
-
-        template <typename T>
-        void visit(T& var) {apply(var);}
+        void visit(std::string& s);
 
         std::size_t get_byte_size() const {return ostrm.tellp();}
 
@@ -186,7 +180,7 @@ class mut_saver
 };
 
 template <typename T>
-void saver::apply(T const& var) 
+void saver::visit(T const& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(var, ostrm);
@@ -196,19 +190,19 @@ void saver::apply(T const& var)
 }
 
 template <typename T, typename Allocator>
-void saver::apply(std::vector<T, Allocator> const& vec) 
+void saver::visit(std::vector<T, Allocator> const& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(vec, ostrm);
     } else {
         size_t n = vec.size();
-        apply(n);
-        for (auto& v : vec) apply(v);
+        visit(n);
+        for (auto& v : vec) visit(v);
     }
 }
 
 template <typename T>
-void mut_saver::apply(T& var) 
+void mut_saver::visit(T& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(var, ostrm);
@@ -218,14 +212,14 @@ void mut_saver::apply(T& var)
 }
 
 template <typename T, typename Allocator>
-void mut_saver::apply(std::vector<T, Allocator>& vec) 
+void mut_saver::visit(std::vector<T, Allocator>& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
         basic_store(vec, ostrm);
     } else {
         size_t n = vec.size();
-        apply(n);
-        for (auto& v : vec) apply(v);
+        visit(n);
+        for (auto& v : vec) visit(v);
     }
 }
 
@@ -235,7 +229,7 @@ template <typename Visitor, typename T, class StreamType>
 static std::size_t visit(T& data_structure, StreamType& strm)
 {
     Visitor visitor(strm);
-    visitor.apply(data_structure);
+    visitor.visit(data_structure);
     return visitor.get_byte_size();
 }
 

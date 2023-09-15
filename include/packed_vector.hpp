@@ -299,9 +299,9 @@ template <class Visitor>
 void 
 vector<UnderlyingType>::visit(Visitor& visitor)
 {
-    visitor.apply(_data);
-    visitor.apply(_size);
-    visitor.apply(_bitwidth);
+    visitor.visit(_data);
+    visitor.visit(_size);
+    visitor.visit(_bitwidth);
 }
 
 template <typename UnderlyingType>
@@ -309,9 +309,9 @@ template <class Visitor>
 void 
 vector<UnderlyingType>::visit(Visitor& visitor) const
 {
-    visitor.apply(_data);
-    visitor.apply(_size);
-    visitor.apply(_bitwidth);
+    visitor.visit(_data);
+    visitor.visit(_size);
+    visitor.visit(_bitwidth);
 }
 
 template <typename UnderlyingType>

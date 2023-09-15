@@ -406,8 +406,8 @@ template <class Visitor>
 void 
 vector<UnsignedIntegerType>::visit(Visitor& visitor)
 {
-    visitor.apply(_data);
-    visitor.apply(bsize);
+    visitor.visit(_data);
+    visitor.visit(bsize);
 }
 
 template <typename UnsignedIntegerType>
@@ -415,8 +415,8 @@ template <class Visitor>
 void 
 vector<UnsignedIntegerType>::visit(Visitor& visitor) const
 {
-    visitor.apply(_data);
-    visitor.apply(bsize);
+    visitor.visit(_data);
+    visitor.visit(bsize);
 }
 
 template <typename UnsignedIntegerType>

@@ -249,9 +249,9 @@ template <class Visitor>
 void 
 array<bit::vector<uint64_t>, 64, 8, with_select_hints>::visit(Visitor& visitor)
 {
-    visitor.apply(_data);
-    visitor.apply(interleaved_blocks);
-    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+    visitor.visit(_data);
+    visitor.visit(interleaved_blocks);
+    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
 template <bool with_select_hints>
@@ -259,9 +259,9 @@ template <class Visitor>
 void 
 array<bit::vector<uint64_t>, 64, 8, with_select_hints>::visit(Visitor& visitor) const
 {
-    visitor.apply(_data);
-    visitor.apply(interleaved_blocks);
-    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+    visitor.visit(_data);
+    visitor.visit(interleaved_blocks);
+    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
 template <bool with_select_hints>
@@ -272,8 +272,8 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::load(Loader& visitor)
     array<bit::vector<uint64_t>, 64, 8, with_select_hints> r;
     // r.visit(visitor);
     r._data = decltype(r._data)::load(visitor);
-    visitor.apply(r.interleaved_blocks);
-    if constexpr (with_select_hints) visitor.apply(r.hints);
+    visitor.visit(r.interleaved_blocks);
+    if constexpr (with_select_hints) visitor.visit(r.hints);
     return r;
 }
 

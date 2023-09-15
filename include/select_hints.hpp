@@ -29,7 +29,7 @@ class select_hints<true>
         std::size_t bit_size() const noexcept {return hints.size() * sizeof(hint_t) * 8;}
 
         template <class Visitor>
-        void visit(Visitor& visitor) const {visitor.apply(hints);}
+        void visit(Visitor& visitor) const {visitor.visit(hints);}
 };
 
 }

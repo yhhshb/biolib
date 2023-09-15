@@ -262,10 +262,10 @@ template <class Visitor>
 void 
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor)
 {
-    visitor.apply(_data);
-    visitor.apply(blocks);
-    visitor.apply(super_blocks);
-    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+    visitor.visit(_data);
+    visitor.visit(blocks);
+    visitor.visit(super_blocks);
+    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
@@ -273,10 +273,10 @@ template <class Visitor>
 void 
 array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor) const
 {
-    visitor.apply(_data);
-    visitor.apply(blocks);
-    visitor.apply(super_blocks);
-    if constexpr (with_select_hints) visitor.apply(select_hints<with_select_hints>::hints);
+    visitor.visit(_data);
+    visitor.visit(blocks);
+    visitor.visit(super_blocks);
+    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
 template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
@@ -288,7 +288,7 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::loa
     r._data = decltype(r._data)::load(visitor);
     r.blocks = decltype(r.blocks)::load(visitor);
     r.super_blocks = decltype(r.super_blocks)::load(visitor);
-    if constexpr (with_select_hints) visitor.apply(r.hints);
+    if constexpr (with_select_hints) visitor.visit(r.hints);
     return r;
 }
 

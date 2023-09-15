@@ -37,10 +37,10 @@ class libra
         libra();
 
         template <typename T>
-        void apply(T const& var) noexcept;
+        void visit(T const& var) noexcept;
 
         template <typename T, class Allocator>
-        void apply(std::vector<T, Allocator> const& vec) noexcept;
+        void visit(std::vector<T, Allocator> const& vec) noexcept;
 
         std::size_t get_byte_size() const noexcept;
 
@@ -49,7 +49,7 @@ class libra
 };
 
 template <typename T>
-void libra::apply(T const& var) noexcept
+void libra::visit(T const& var) noexcept
 {
     if constexpr (std::is_fundamental<T>::value) {
         auto nr = basic_size_measure(var);
@@ -60,15 +60,15 @@ void libra::apply(T const& var) noexcept
 }
 
 template <typename T, typename Allocator>
-void libra::apply(std::vector<T, Allocator> const& vec) noexcept
+void libra::visit(std::vector<T, Allocator> const& vec) noexcept
 {
     if constexpr (std::is_fundamental<T>::value) {
         auto nr = basic_size_measure(vec);
         acc += nr;
     } else {
         auto n = vec.size();
-        apply(n);
-        for (auto const& v : vec) apply(v); // Call apply(), not load() since we want to recursively count the number of bytes
+        visit(n);
+        for (auto const& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
     }
 }
 
