@@ -42,6 +42,8 @@ class libra
         template <typename T, class Allocator>
         void visit(std::vector<T, Allocator> const& vec) noexcept;
 
+        void visit(std::string const& s) noexcept;
+
         std::size_t get_byte_size() const noexcept;
 
     private:
@@ -62,14 +64,14 @@ void libra::visit(T const& var) noexcept
 template <typename T, typename Allocator>
 void libra::visit(std::vector<T, Allocator> const& vec) noexcept
 {
-    if constexpr (std::is_fundamental<T>::value) {
-        auto nr = basic_size_measure(vec);
-        acc += nr;
-    } else {
+    // if constexpr (std::is_fundamental<T>::value) {
+    //     auto nr = basic_size_measure(vec);
+    //     acc += nr;
+    // } else {
         auto n = vec.size();
         visit(n);
         for (auto const& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
-    }
+    // }
 }
 
 template <class ClockType, typename MeasurementType>
