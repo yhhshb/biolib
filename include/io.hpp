@@ -34,7 +34,6 @@ static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& ve
     vec.resize(n);
     std::size_t bytes_read = sizeof(n);
     for (auto& v : vec) bytes_read += basic_load(istrm, v);
-    // istrm.read(reinterpret_cast<char*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
     return bytes_read;
 }
 
@@ -45,7 +44,6 @@ static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& ve
     s.resize(n);
     std::size_t bytes_read = sizeof(n);
     for (auto& c : s) bytes_read += basic_load(istrm, c);
-    // istrm.read(reinterpret_cast<char*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
     return bytes_read;
 }
 
@@ -66,7 +64,6 @@ static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostrea
     std::size_t n = vec.size();
     std::size_t bytes_written = basic_store(n, ostrm);
     for (auto const& v : vec) bytes_written += basic_store(v, ostrm);
-    // ostrm.write(reinterpret_cast<char const*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
     return bytes_written;
 }
 
@@ -75,7 +72,6 @@ static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostrea
     std::size_t n = s.size();
     std::size_t bytes_written = basic_store(n, ostrm);
     for (auto const& c : s) bytes_written += basic_store(c, ostrm);
-    // ostrm.write(reinterpret_cast<char const*>(vec.data()), static_cast<std::streamsize>(sizeof(T) * n));
     return bytes_written;
 }
 
@@ -95,13 +91,13 @@ class loader
         void visit(std::string& s);
 
         std::size_t get_byte_size() const {return istrm.tellg();}
-        std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
-        std::size_t get_byte_size_of_vectors() const {return num_bytes_vecs_of_pods;}
+        // std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
+        // std::size_t get_byte_size_of_vectors() const {return num_bytes_vecs_of_pods;}
 
     private:
         std::istream& istrm;
-        std::size_t num_bytes_pods;
-        std::size_t num_bytes_vecs_of_pods;
+        // std::size_t num_bytes_pods;
+        // std::size_t num_bytes_vecs_of_pods;
 };
 
 /*
@@ -112,8 +108,9 @@ template <typename T>
 void loader::visit(T& var)
 {
     if constexpr (std::is_fundamental<T>::value) {
-        auto nr = basic_load(istrm, var);
-        num_bytes_pods += nr;
+        // auto nr = 
+        basic_load(istrm, var);
+        // num_bytes_pods += nr;
     } else {
         var.visit(*this); // supposing the to-be saved object has a visit() method
     }
@@ -127,14 +124,14 @@ template <typename T, typename Allocator>
 void loader::visit(std::vector<T, Allocator>& vec)
 {
     if constexpr (std::is_fundamental<T>::value) {
-        auto nr = basic_load(istrm, vec);
-        num_bytes_vecs_of_pods += nr;
+        // auto nr = 
+        basic_load(istrm, vec);
+        // num_bytes_vecs_of_pods += nr;
     } else {
         std::size_t n;
         visit(n);
         vec.resize(n);
         for (auto& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
-        // [[maybe unused]] load(vec);
     }
 }
 
@@ -154,12 +151,16 @@ class saver
         void visit(std::string const& s);
 
         std::size_t get_byte_size() const {return ostrm.tellp();}
+        // std::size_t get_byte_size_of_simple_types() const {return num_bytes_pods;}
+        // std::size_t get_byte_size_of_vectors() const {return num_bytes_vecs_of_pods;}
 
-    private:
+    protected:
         std::ostream& ostrm;
+        // std::size_t num_bytes_pods;
+        // std::size_t num_bytes_vecs_of_pods;
 };
 
-class mut_saver 
+class mut_saver : public saver
 {
     public:
         mut_saver(std::ostream& output_stream);
@@ -172,18 +173,15 @@ class mut_saver
         void visit(std::vector<T, Allocator>& vec);
 
         void visit(std::string& s);
-
-        std::size_t get_byte_size() const {return ostrm.tellp();}
-
-    private:
-        std::ostream& ostrm;
 };
 
 template <typename T>
 void saver::visit(T const& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
+        // auto nr = 
         basic_store(var, ostrm);
+        // num_bytes_pods += nr;
     } else {
         var.visit(*this);
     }
@@ -193,7 +191,9 @@ template <typename T, typename Allocator>
 void saver::visit(std::vector<T, Allocator> const& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
+        // auto nr = 
         basic_store(vec, ostrm);
+        // num_bytes_vecs_of_pods += nr;
     } else {
         size_t n = vec.size();
         visit(n);
@@ -205,7 +205,9 @@ template <typename T>
 void mut_saver::visit(T& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
+        // auto nr = 
         basic_store(var, ostrm);
+        // num_bytes_vecs_of_pods += nr;
     } else {
         var.visit(*this);
     }
@@ -215,7 +217,9 @@ template <typename T, typename Allocator>
 void mut_saver::visit(std::vector<T, Allocator>& vec) 
 {
     if constexpr (std::is_fundamental<T>::value) {
+        // auto nr = 
         basic_store(vec, ostrm);
+        // num_bytes_vecs_of_pods += nr;
     } else {
         size_t n = vec.size();
         visit(n);
