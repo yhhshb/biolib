@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <cassert>
 
+#include "bit_operations.hpp"
+
 namespace bit {
 
 template <typename UnsignedIntegerType>
@@ -211,6 +213,7 @@ template <typename UnsignedIntegerType>
 void 
 vector<UnsignedIntegerType>::push_back(UnsignedIntegerType block, std::size_t suffix_len)
 {
+    assert(suffix_len <= ::bit::size(block));
     auto [a, b] = idx_to_coordinates(bsize + suffix_len);
     if (a >= _data.size()) {
         _data.push_back(static_cast<block_type>(block >> (suffix_len - b))); // insert msb directly into new block
