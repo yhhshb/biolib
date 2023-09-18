@@ -64,8 +64,8 @@ template <typename UnsignedIntegerType>
 static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
 {
     auto xx = x + 1;
-    if (xx >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[gamma] Unable to gamma encode");
     std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
+    if (b >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[gamma] Unable to gamma encode");
     unary(out, b);
     auto mask = (static_cast<std::size_t>(1) << b) - 1;
     out.push_back(xx & mask, b);
@@ -75,8 +75,8 @@ template <typename UnsignedIntegerType>
 static inline void delta(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
 {
     auto xx = x + 1;
-    if (xx >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[delta] Unable to gamma encode");
     std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
+    if (b >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[delta] Unable to gamma encode");
     gamma(out, b);
     auto mask = (static_cast<std::size_t>(1) << b) - 1;
     out.push_back(xx & mask, b);

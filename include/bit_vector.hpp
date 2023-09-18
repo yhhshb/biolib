@@ -218,7 +218,7 @@ vector<UnsignedIntegerType>::push_back(UnsignedIntegerType block, std::size_t su
     if (a >= _data.size()) {
         _data.push_back(static_cast<block_type>(block >> (suffix_len - b))); // insert msb directly into new block
     }
-    assert(_data.size() > a);
+    assert(_data.size() > a or suffix_len == block_bit_size);
     auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
     _data[block_idx] |= block << bit_idx; // insert lsb into (old) last block
     bsize += suffix_len;
