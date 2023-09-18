@@ -123,16 +123,16 @@ void loader::visit(T& var)
 template <typename T, typename Allocator>
 void loader::visit(std::vector<T, Allocator>& vec)
 {
-    if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
-        basic_load(istrm, vec);
-        // num_bytes_vecs_of_pods += nr;
-    } else {
+    // if constexpr (std::is_fundamental<T>::value) {
+    //     // auto nr = 
+    //     basic_load(istrm, vec);
+    //     // num_bytes_vecs_of_pods += nr;
+    // } else {
         std::size_t n;
         visit(n);
         vec.resize(n);
         for (auto& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
-    }
+    // }
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -190,15 +190,15 @@ void saver::visit(T const& var)
 template <typename T, typename Allocator>
 void saver::visit(std::vector<T, Allocator> const& vec) 
 {
-    if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
-        basic_store(vec, ostrm);
-        // num_bytes_vecs_of_pods += nr;
-    } else {
+    // if constexpr (std::is_fundamental<T>::value) {
+    //     // auto nr = 
+    //     basic_store(vec, ostrm);
+    //     // num_bytes_vecs_of_pods += nr;
+    // } else {
         size_t n = vec.size();
         visit(n);
         for (auto& v : vec) visit(v);
-    }
+    // }
 }
 
 template <typename T>
@@ -216,15 +216,15 @@ void mut_saver::visit(T& var)
 template <typename T, typename Allocator>
 void mut_saver::visit(std::vector<T, Allocator>& vec) 
 {
-    if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
-        basic_store(vec, ostrm);
-        // num_bytes_vecs_of_pods += nr;
-    } else {
+    // if constexpr (std::is_fundamental<T>::value) {
+    //     // auto nr = 
+    //     basic_store(vec, ostrm);
+    //     // num_bytes_vecs_of_pods += nr;
+    // } else {
         size_t n = vec.size();
         visit(n);
         for (auto& v : vec) visit(v);
-    }
+    // }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
