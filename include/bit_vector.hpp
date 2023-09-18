@@ -124,6 +124,9 @@ class vector
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Visitor>
+        void visit(Visitor& visitor); // here for convenience but in normal circumstances load should be used instead
+
         template <class Loader>
         static vector load(Loader& visitor);
         
@@ -141,9 +144,6 @@ class vector
             return same_size and (a._data == b._data);
         };
         friend bool operator!=(vector const& a, vector const& b) {return not (a == b);};
-
-        template <class Visitor>
-        void visit(Visitor& visitor);
 };
 
 template <typename UnsignedIntegerType>

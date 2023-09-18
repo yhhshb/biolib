@@ -17,6 +17,9 @@ class select_hints<false>
 
         template <class Visitor>
         void visit([[maybe_unused]] Visitor& visitor) const {}
+
+        template <class Visitor>
+        void visit([[maybe_unused]] Visitor& visitor) {}
 };
 
 template <>
@@ -30,6 +33,9 @@ class select_hints<true>
 
         template <class Visitor>
         void visit(Visitor& visitor) const {visitor.visit(hints);}
+
+        template <class Visitor>
+        void visit(Visitor& visitor) {visitor.visit(hints);}
 };
 
 }

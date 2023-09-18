@@ -33,6 +33,9 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Visitor>
+        void visit(Visitor& visitor);
+
         template <class Loader>
         static array load(Loader& visitor);
 
@@ -76,9 +79,6 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
             return result;
         };
         friend bool operator!=(array const& a, array const& b) {return not (a == b);};
-
-        template <class Visitor>
-        void visit(Visitor& visitor);
 };
 
 template <bool with_select_hints>

@@ -4,9 +4,9 @@
 
 int main()
 {
-    std::vector<uint64_t> vec = {1,2,3,4,5,6,7,8};
-    std::string s = "Hello, world!\n";
-    int val = 10;
+    const std::vector<uint64_t> vec = {1,2,3,4,5,6,7,8};
+    const std::string s = "Hello, world!\n";
+    const int val = 10;
     {
         std::ofstream ofs("test_io_payload.bin", std::ios::binary);
         io::mut_saver saver(ofs);

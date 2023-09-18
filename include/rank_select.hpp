@@ -44,6 +44,9 @@ class array : protected select_hints<with_select_hints>
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Visitor>
+        void visit(Visitor& visitor);
+
         template <class Loader>
         static array load(Loader& visitor);
 
@@ -67,9 +70,6 @@ class array : protected select_hints<with_select_hints>
             return result;
         };
         friend bool operator!=(array const& a, array const& b) {return not (a == b);};
-
-        template <class Visitor>
-        void visit(Visitor& visitor);
 
         // IMPROVEMENTS:
         // - pack each super-block and its blocks together in order to improve locality

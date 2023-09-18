@@ -33,6 +33,9 @@ class array
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Visitor>
+        void visit(Visitor& visitor);
+
         template <class Loader>
         static array load(Loader& visitor);
 
@@ -196,6 +199,14 @@ array::build(Iterator start, Iterator stop)
 template <class Visitor>
 void 
 array::visit(Visitor& visitor) const
+{
+    visitor.visit(msbrs);
+    visitor.visit(lsb);
+}
+
+template <class Visitor>
+void 
+array::visit(Visitor& visitor)
 {
     visitor.visit(msbrs);
     visitor.visit(lsb);

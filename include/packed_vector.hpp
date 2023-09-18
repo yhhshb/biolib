@@ -56,6 +56,9 @@ class vector
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
+        template <class Visitor>
+        void visit(Visitor& visitor); // for convenience
+
         template <class Loader>
         static vector load(Loader& visitor);
 
@@ -75,9 +78,6 @@ class vector
             return same_bitwidth and same_size and (a._data == b._data);
         };
         friend bool operator!=(vector const& a, vector const& b) {return not (a == b);};
-
-        template <class Visitor>
-        void visit(Visitor& visitor);
 };
 
 template <typename UnderlyingType>

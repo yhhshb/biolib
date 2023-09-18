@@ -165,6 +165,8 @@ class mut_saver : public saver
     public:
         mut_saver(std::ostream& output_stream);
 
+        using saver::visit; // import template methods of base class
+
         // non-const versions
         template <typename T>
         void visit(T& var);
@@ -197,7 +199,7 @@ void saver::visit(std::vector<T, Allocator> const& vec)
     // } else {
         size_t n = vec.size();
         visit(n);
-        for (auto& v : vec) visit(v);
+        for (auto const& v : vec) visit(v);
     // }
 }
 
