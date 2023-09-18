@@ -44,6 +44,7 @@ static inline void unary(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 {
     while(x >= ::bit::size<UnsignedIntegerType>()) {
         out.push_back(UnsignedIntegerType(0), ::bit::size<UnsignedIntegerType>());
+        x -= ::bit::size<UnsignedIntegerType>();
     }
     UnsignedIntegerType last = UnsignedIntegerType(1) << x;
     if (x + 1 > ::bit::size<UnsignedIntegerType>()) throw std::runtime_error("[unary encoder] This should never happen");
@@ -62,9 +63,9 @@ static inline void binary(::bit::vector<UnsignedIntegerType>& out, UnsignedInteg
 template <typename UnsignedIntegerType>
 static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
 {
-    // if (x == std::numeric_limits<UnsignedIntegerType2>::max()) throw std::runtime_error("[gamma] Unable to gamma encode");
     auto xx = x + 1;
-    std::size_t b = msbll(xx);
+    if (xx >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[gamma] Unable to gamma encode");
+    std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
     unary(out, b);
     auto mask = (static_cast<std::size_t>(1) << b) - 1;
     out.push_back(xx & mask, b);
@@ -73,9 +74,9 @@ static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 template <typename UnsignedIntegerType>
 static inline void delta(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
 {
-    // if (x == std::numeric_limits<UnsignedIntegerType2>::max()) throw std::runtime_error("[gamma] Unable to gamma encode");
     auto xx = x + 1;
-    std::size_t b = msbll(xx);
+    if (xx >= ::bit::size<UnsignedIntegerType>()) throw std::overflow_error("[delta] Unable to gamma encode");
+    std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
     gamma(out, b);
     auto mask = (static_cast<std::size_t>(1) << b) - 1;
     out.push_back(xx & mask, b);

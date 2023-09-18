@@ -201,10 +201,10 @@ vector<UnsignedIntegerType>::push_back(bool bit)
 {
     auto [a, b] = idx_to_coordinates(bsize);
     if (a == _data.size()) _data.push_back(static_cast<block_type>(0));
+    assert(_data.size() > a);
+    _data[a] |= static_cast<block_type>(bit) << (b);
     ++bsize;
-    check_coordinates(bsize);
-    auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
-    _data[block_idx] |= static_cast<block_type>(bit) << (bit_idx);
+    // auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
 }
 
 template <typename UnsignedIntegerType>
@@ -213,12 +213,12 @@ vector<UnsignedIntegerType>::push_back(UnsignedIntegerType block, std::size_t su
 {
     auto [a, b] = idx_to_coordinates(bsize + suffix_len);
     if (a >= _data.size()) {
-        _data.push_back(static_cast<block_type>(block >> (block_bit_size - b)));
+        _data.push_back(static_cast<block_type>(block >> (suffix_len - b))); // insert msb directly into new block
     }
-    bsize += suffix_len;
-    check_coordinates(bsize);
+    assert(_data.size() > a);
     auto [block_idx, bit_idx] = idx_to_coordinates(bsize);
-    _data[block_idx] |= block << b;
+    _data[block_idx] |= block << bit_idx; // insert lsb into (old) last block
+    bsize += suffix_len;
 }
 
 template <typename UnsignedIntegerType>
@@ -342,8 +342,7 @@ vector<UnsignedIntegerType>::vector_data() const noexcept
 template <typename UnsignedIntegerType>
 std::size_t
 vector<UnsignedIntegerType>::block_size() const noexcept 
-{
-    // std::cerr << "bsize = " << bsize << " bit2bytesize = " << bit_to_byte_size(bsize) << ", vector data size = " << _data.size() << "\n"; 
+{ 
     assert(bit_to_byte_size(bsize) == _data.size());
     return _data.size();
 }
