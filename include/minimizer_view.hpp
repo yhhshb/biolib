@@ -20,13 +20,13 @@ class minimizer_view
                 };
                 using iterator_category = std::forward_iterator_tag;
                 using difference_type   = std::ptrdiff_t;
-                using value_type        = minimizer_t;
+                using value_type        = minimizer_context_t;
                 using pointer           = value_type*;
                 using reference         = value_type&;
 
                 const_iterator(minimizer_view const* view);
                 const_iterator(minimizer_view const* view, int dummy_end);
-                minimizer_context_t const& operator*() const noexcept;
+                value_type const& operator*() const noexcept;
                 const_iterator const& operator++();
                 const_iterator operator++(int);
                 std::size_t break_offset() const noexcept;
@@ -35,7 +35,7 @@ class minimizer_view
                 class window
                 {
                     public:
-                        struct mm_context_t : public minimizer_t {
+                        struct mm_context_t : public minimizer_context_t {
                             typename std::result_of<HashFunction>::type mm_hash;
                         };
 
@@ -172,7 +172,7 @@ minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator:
 }
 
 template <typename KmerType, typename MinimizerType, typename HashFunction, typename Iterator>
-minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::minimizer_context_t const& 
+minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::value_type const& 
 minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::operator*() const noexcept
 {
     return buffer.min();
@@ -211,7 +211,7 @@ template <typename KmerType, typename MinimizerType, typename HashFunction, type
 minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator
 minimizer_view<KmerType, MinimizerType, HashFunction, Iterator>::const_iterator::operator++(int)
 {
-    minimizer_t res = *this;
+    auto res = *this;
     operator++();
     return res;
 }

@@ -1,6 +1,7 @@
 #ifndef KMER_VIEW_HPP
 #define KMER_VIEW_HPP
 
+#include <limits>
 #include <string>
 #include <optional>
 #include <cassert>
@@ -24,10 +25,9 @@ class kmer_view
         class const_iterator
         {
             public:
-                using kmer_context_t    = kmer_context_t<KmerType>;
                 using iterator_category = std::forward_iterator_tag;
                 using difference_type   = std::ptrdiff_t;
-                using value_type        = kmer_context_t;
+                using value_type        = kmer_context_t<KmerType>;
                 using pointer           = value_type*;
                 using reference         = value_type&;
 
@@ -172,8 +172,8 @@ typename kmer_view<KmerType, Iterator>::const_iterator::value_type
 kmer_view<KmerType, Iterator>::const_iterator::operator*() const noexcept
 {
     assert(position >= parent_view->klen);
-    if (bases_since_last_break == 0) return kmer_context_t{std::nullopt, position - parent_view->klen, kmer_count};
-    return kmer_context_t{kmer_buffer[strand], position - parent_view->klen, kmer_count};
+    if (bases_since_last_break == 0) return value_type{std::nullopt, position - parent_view->klen, kmer_count};
+    return value_type{kmer_buffer[strand], position - parent_view->klen, kmer_count};
 }
 
 template <typename KmerType, class Iterator>
