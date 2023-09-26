@@ -21,7 +21,7 @@ class super_kmer_view
                     mm_view_type minimizer; // 2-bit packed minimizer
                     uint8_t mm_pos;         // position of the minimizer in the first k-mer
                     uint8_t size;           // super k-mer size (number of k-mers)
-                };
+                }; 
                 using iterator_category = std::forward_iterator_tag;
                 using difference_type   = std::ptrdiff_t;
                 using value_type        = super_kmer_t;
