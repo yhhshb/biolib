@@ -8,6 +8,17 @@
 #include <optional>
 #include <cassert>
 
+#if defined(__SSE4_2__)
+// #if defined(__GNUC__) || defined(__GNUG__)
+// #pragma GCC target("sse4") // redundant, since nmmintrin.h takes care of setting gcc flags
+// #endif
+extern "C" {
+#include <nmmintrin.h>
+}
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#endif
+
 namespace bit {
 
 typedef
@@ -79,10 +90,6 @@ inline std::optional<std::size_t> lsb(unsigned long long x)
 template <typename T>
 constexpr int std_popcount(T x) {return std::popcount(x);}
 #elif defined(__SSE4_2__)
-#if defined(__GNUC__) || defined(__GNUG__)
-#pragma GCC target("sse4")
-#endif
-#include <nmmintrin.h>
 inline int sse4_popcount(uint8_t x) {return _mm_popcnt_u32(x);}
 inline int sse4_popcount(uint16_t x) {return _mm_popcnt_u32(x);}
 inline int sse4_popcount(uint32_t x) {return _mm_popcnt_u32(x);}
@@ -98,7 +105,6 @@ constexpr int gcc_popcount(uint16_t x) {return __builtin_popcount(x);}
 constexpr int gcc_popcount(uint32_t x) {return __builtin_popcount(x);}
 constexpr int gcc_popcount(uint64_t x) {return __builtin_popcountll(x);}
 #elif defined(_MSC_VER)
-#include <intrin.h>
 constexpr int mvsc_popcount(uint8_t x) {return __popcnt16(x);}
 constexpr int mvsc_popcount(uint16_t x) {return __popcnt16(x);}
 constexpr int mvsc_popcount(uint32_t x) {return __popcnt(x);}
