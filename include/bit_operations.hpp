@@ -1,10 +1,12 @@
 #ifndef BIT_OPERATIONS_HPP
 #define BIT_OPERATIONS_HPP
 
+#include <stdexcept>
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
 #include <array>
+#include <vector>
 #include <optional>
 #include <cassert>
 
