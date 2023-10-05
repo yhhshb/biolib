@@ -27,3 +27,51 @@ write_basic_package_version_file(
   "${CMAKE_BINARY_DIR}/biolibConfigVersion.cmake"
   COMPATIBILITY SameMajorVersion
 )
+
+include(GNUInstallDirs)
+
+install(
+  TARGETS biolib EXPORT biolib_Targets
+  RUNTIME COMPONENT biolib_Runtime
+  LIBRARY COMPONENT biolib_Runtime
+  NAMELINK_COMPONENT biolib_Devlopment
+  ARCHIVE COMPONENT biolib_Devlopment
+  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+install(
+  DIRECTORY "${CMAKE_SOURCE_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT biolib_Development
+)
+
+install(
+  EXPORT biolib_Targets
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/biolib"
+  NAMESPACE biolib::
+  FILE biolib-targets.cmake
+  COMPONENT biolib_Development
+)
+
+install(
+  FILES "${CMAKE_SOURCE_DIR}/cmake/biolibConfig.cmake" "${CMAKE_BINARY_DIR}/biolibConfigVersion.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/biolib"
+  COMPONENT biolib_Development
+)
+
+file(GLOB_RECURSE BUNDLED_INCLUDE "${CMAKE_SOURCE_DIR}/bundled/*.hpp")
+
+install(
+  FILES ${BUNDLED_INCLUDE}
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT biolib_Development
+)
+
+configure_file(${CMAKE_SOURCE_DIR}/cmake/biolib.pc.in "${CMAKE_BINARY_DIR}/biolib.pc" @ONLY)
+install(
+  FILES "${CMAKE_BINARY_DIR}/biolib.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  COMPONENT biolib_Development
+)
+
+
