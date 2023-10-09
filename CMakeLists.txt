@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.13)
 project(BIOLIB VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -31,10 +31,13 @@ target_compile_options(warning_flags INTERFACE
 
 add_library(asan_flags INTERFACE)
 target_compile_options(asan_flags INTERFACE
-  $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fno-omit-frame-pointer -fsanitize=address>
+  $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fsanitize=address -fno-omit-frame-pointer>
 )
 target_link_options(asan_flags INTERFACE
-  $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fno-omit-frame-pointer -fsanitize=address>
+  $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fsanitize=address -fno-omit-frame-pointer>
+)
+target_link_libraries(asan_flags INTERFACE
+  $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fsanitize=address -fno-omit-frame-pointer>
 )
 
 file(GLOB_RECURSE BUNDLED_SOURCES "${CMAKE_SOURCE_DIR}/bundled/*.cpp")
