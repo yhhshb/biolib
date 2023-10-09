@@ -25,7 +25,7 @@ namespace bit {
 
 typedef
 #if defined(UINT64_MAX)
-uint64_t 
+uint64_t
 #elif defined(UINT32_MAX)
 uint32_t
 #elif defined(UINT16_MAX)
@@ -36,21 +36,21 @@ uint8_t
 max_width_native_type;
 
 static const std::array<uint8_t, 256> popvalues = {
-    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
 };
 
@@ -58,7 +58,7 @@ template <typename T>
 inline std::size_t size() {return 8 * sizeof(T);}
 
 template <typename T>
-inline std::size_t size([[maybe_unused]] T x) 
+inline std::size_t size([[maybe_unused]] T x)
 {
     return 8 * sizeof(T);
 }
@@ -69,7 +69,7 @@ inline std::size_t size([[maybe_unused]] T x)
 */
 
 /* position of the least significant bit (lsb) */
-static inline std::size_t lsbll(unsigned long long x) 
+static inline std::size_t lsbll(unsigned long long x)
 {
     assert(x > 0);              // if x is 0, the result is undefined
     return __builtin_ctzll(x);  // count trailing zeros (ctz)
@@ -82,7 +82,7 @@ static inline std::size_t msbll(T x)
     return ::bit::size(x) - 1 - lsbll(x);  // count leading zeros (clz)
 }
 
-inline std::optional<std::size_t> lsb(unsigned long long x) 
+inline std::optional<std::size_t> lsb(unsigned long long x)
 {
     if (x) return static_cast<std::size_t>(__builtin_ctzll(x));
     return std::nullopt;
@@ -113,7 +113,7 @@ constexpr int mvsc_popcount(uint32_t x) {return __popcnt(x);}
 constexpr int mvsc_popcount(uint64_t x) {return __popcnt64(x);}
 #else
 template <typename T>
-constexpr int emulated_popcount(T x) 
+constexpr int emulated_popcount(T x)
 {
     x = x - ((x >> 1) & (T)~(T)0/3);
     x = (x & (T)~(T)0/15*3) + ((x >> 2) & (T)~(T)0/15*3);
@@ -169,8 +169,8 @@ inline int select(uint32_t x, std::size_t th)
     uint32_t a, b, c, d; // Intermediate temporaries for bit count.
     unsigned int t;      // Bit count temporary.
 
-    // Do a normal parallel bit count for a 64-bit integer,                     
-    // but store all intermediate steps.                                        
+    // Do a normal parallel bit count for a 64-bit integer,
+    // but store all intermediate steps.
     // a = (v & 0x5555...) + ((v >> 1) & 0x5555...);
     a =  v - ((v >> 1) & ~0UL/3);
     // b = (a & 0x3333...) + ((a >> 2) & 0x3333...);
@@ -180,26 +180,26 @@ inline int select(uint32_t x, std::size_t th)
     // d = (c & 0x00ff...) + ((c >> 8) & 0x00ff...);
     d = (c + (c >> 8)) & ~0UL/0x101;
     t = (d >> 32) + (d >> 48);
-    // Now do branchless select!                                                
+    // Now do branchless select!
     s  = 64;
     // if (r > t) {s -= 32; r -= t;}
-    s -= ((t - r) & 256) >> 3; 
+    s -= ((t - r) & 256) >> 3;
     r -= (t & ((t - r) >> 8));
     t  = (d >> (s - 16)) & 0xff;
     // if (r > t) {s -= 16; r -= t;}
-    s -= ((t - r) & 256) >> 4; 
+    s -= ((t - r) & 256) >> 4;
     r -= (t & ((t - r) >> 8));
     t  = (c >> (s - 8)) & 0xf;
     // if (r > t) {s -= 8; r -= t;}
-    s -= ((t - r) & 256) >> 5; 
+    s -= ((t - r) & 256) >> 5;
     r -= (t & ((t - r) >> 8));
     t  = (b >> (s - 4)) & 0x7;
     // if (r > t) {s -= 4; r -= t;}
-    s -= ((t - r) & 256) >> 6; 
+    s -= ((t - r) & 256) >> 6;
     r -= (t & ((t - r) >> 8));
     t  = (a >> (s - 2)) & 0x3;
     // if (r > t) {s -= 2; r -= t;}
-    s -= ((t - r) & 256) >> 7; 
+    s -= ((t - r) & 256) >> 7;
     r -= (t & ((t - r) >> 8));
     t  = (v >> (s - 1)) & 0x1;
     // if (r > t) s--;
@@ -265,7 +265,7 @@ inline std::size_t popcount(Vector vec, std::size_t idx)
     return popc;
 }
 
-inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx) 
+inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx)
 {
     typedef max_width_native_type view_t;
     view_t const * const p = reinterpret_cast<view_t const *>(arr);
@@ -285,7 +285,7 @@ inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx)
     assert(shift < 8);
     // std::cerr << "block idx = " << block_idx << ", rem bit idx = " << rem_bit_idx << ", rem bytes = " << rem_bytes << ", shift = " << shift << std::endl;
     memcpy(reinterpret_cast<void*>(&buffer), reinterpret_cast<void const *>(&arr[block_idx * sizeof(view_t)]), rem_bytes);
-    
+
     auto buffer_view = reinterpret_cast<uint8_t*>(&buffer);
     buffer_view[rem_bytes-1] &= ~((uint8_t(1) << shift) - uint8_t(1));
     popc += popcount(buffer);
@@ -303,7 +303,7 @@ inline std::size_t rank(Vector vec, std::size_t stop, std::size_t start = 0)
 }
 
 template <typename T>
-inline std::size_t size(std::vector<T> v) 
+inline std::size_t size(std::vector<T> v)
 {
     return 8 * sizeof(T) * v.size();
 }

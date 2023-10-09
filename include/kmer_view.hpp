@@ -5,6 +5,7 @@
 #include <string>
 #include <optional>
 #include <cassert>
+#include <limits>
 
 #include "constants.hpp"
 #include "hash.hpp"
@@ -37,7 +38,7 @@ class kmer_view
                 const_iterator const& operator++();
                 const_iterator operator++(int);
                 KmerType get_mask() const noexcept;
-            
+
             private:
                 kmer_view const* parent_view;
                 Iterator itr;
@@ -53,7 +54,7 @@ class kmer_view
                 friend bool operator==(const_iterator const& a, const_iterator const& b) {return a.parent_view == b.parent_view and a.itr == b.itr;};
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
-    
+
         kmer_view(Iterator start, Iterator stop, uint8_t k, bool canonical = false);
         // kmer_view(char const* contig, std::size_t contig_len, uint8_t k, bool canonical = false);
         // kmer_view(std::string const& contig, uint8_t k, bool canonical = false) noexcept;
@@ -114,35 +115,35 @@ kmer_view<KmerType, Iterator>::kmer_view(Iterator start, Iterator stop, uint8_t 
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator 
+typename kmer_view<KmerType, Iterator>::const_iterator
 kmer_view<KmerType, Iterator>::cbegin() const
 {
     return const_iterator(this);
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator 
+typename kmer_view<KmerType, Iterator>::const_iterator
 kmer_view<KmerType, Iterator>::cend() const noexcept
 {
     return const_iterator(this, 0);
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator 
+typename kmer_view<KmerType, Iterator>::const_iterator
 kmer_view<KmerType, Iterator>::begin() const
 {
     return cbegin();
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator 
+typename kmer_view<KmerType, Iterator>::const_iterator
 kmer_view<KmerType, Iterator>::end() const noexcept
 {
     return cend();
 }
 
 template <typename KmerType, class Iterator>
-uint8_t 
+uint8_t
 kmer_view<KmerType, Iterator>::get_k() const noexcept
 {
     return klen;
@@ -168,7 +169,7 @@ kmer_view<KmerType, Iterator>::const_iterator::const_iterator(kmer_view const* v
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator::value_type 
+typename kmer_view<KmerType, Iterator>::const_iterator::value_type
 kmer_view<KmerType, Iterator>::const_iterator::operator*() const noexcept
 {
     assert(position >= parent_view->klen);
@@ -177,7 +178,7 @@ kmer_view<KmerType, Iterator>::const_iterator::operator*() const noexcept
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator const& 
+typename kmer_view<KmerType, Iterator>::const_iterator const&
 kmer_view<KmerType, Iterator>::const_iterator::operator++()
 {
     assert(itr != parent_view->itr_stop);
@@ -200,7 +201,7 @@ kmer_view<KmerType, Iterator>::const_iterator::operator++()
 }
 
 template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator 
+typename kmer_view<KmerType, Iterator>::const_iterator
 kmer_view<KmerType, Iterator>::const_iterator::operator++(int)
 {
     auto res = *this;
@@ -209,7 +210,7 @@ kmer_view<KmerType, Iterator>::const_iterator::operator++(int)
 }
 
 template <typename KmerType, class Iterator>
-void 
+void
 kmer_view<KmerType, Iterator>::const_iterator::find_first_good_kmer()
 {
     assert(itr != parent_view->itr_stop);
@@ -259,7 +260,7 @@ class minimizer_position_extractor
 };
 
 template <typename KmerType>
-std::size_t 
+std::size_t
 minimizer_position_extractor::operator()(wrapper::kmer_context_t<KmerType> const& kmer) const noexcept
 {
     if (!kmer.value) return klen + 1;
