@@ -6,7 +6,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif ()
 
-option(BIOLIB_PORTABLE "Portable x86-64 build" OFF)
+option(BIOLIB_X86_64 "x86-64 build" OFF)
 option(BIOLIB_USE_SANITIZERS "Compile with asan" OFF)
 option(BIOLIB_TESTS "Compile tests" OFF)
 
@@ -14,7 +14,7 @@ add_library(build_flags INTERFACE)
 target_compile_options(build_flags INTERFACE
   $<$<CONFIG:Debug>:-O -ggdb>
   $<$<CONFIG:Release>:-O3 -DNDEBUG>
-  $<IF:$<BOOL:${BIOLIB_PORTABLE}>,-march=x86-64,-march=native -mbmi2 -msse4.2>
+  $<$<BOOL:${BIOLIB_X86_64}>:-march=x86-64 -march=native -mbmi2 -msse4.2>
 )
 
 target_link_options(build_flags INTERFACE
