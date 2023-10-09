@@ -1,6 +1,8 @@
 #ifndef CODES_HPP
 #define CODES_HPP
 
+#include <limits>
+
 #include "bit_operations.hpp"
 #include "bit_vector.hpp"
 #include "bit_parser.hpp"
@@ -15,7 +17,7 @@ template <typename T>
 inline std::size_t unary_bitsize(T x) { return static_cast<std::size_t>(x); }
 
 template <typename T>
-inline std::size_t gamma_bitsize(T x) 
+inline std::size_t gamma_bitsize(T x)
 {
     if (x == std::numeric_limits<T>::max()) throw std::overflow_error("[gamma_bitsize] Unable to compute size of gamma encoding");
     auto b = binary_bitsize(x + 1);
@@ -23,7 +25,7 @@ inline std::size_t gamma_bitsize(T x)
 }
 
 template <typename T>
-inline std::size_t delta_bitsize(T x) 
+inline std::size_t delta_bitsize(T x)
 {
     if (x == std::numeric_limits<T>::max()) throw std::overflow_error("[delta_bitsize] Unable to compute size of gamma encoding");
     auto b = binary_bitsize(x + 1);
@@ -33,14 +35,14 @@ inline std::size_t delta_bitsize(T x)
 namespace encoder {
 
 template <typename UnsignedIntegerType1, typename UnsignedIntegerType2, std::size_t width>
-static inline void fixed_width(::bit::vector<UnsignedIntegerType1>& out, UnsignedIntegerType2 x) 
+static inline void fixed_width(::bit::vector<UnsignedIntegerType1>& out, UnsignedIntegerType2 x)
 {
     if constexpr (width > 8 * sizeof(x)) throw std::length_error("[fixed width] Encoding exceeding type width");
     out.push_back(x, width);
 }
 
 template <typename UnsignedIntegerType>
-static inline void unary(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
+static inline void unary(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 {
     while(x >= ::bit::size<UnsignedIntegerType>()) {
         out.push_back(UnsignedIntegerType(0), ::bit::size<UnsignedIntegerType>());
@@ -57,11 +59,11 @@ static inline void binary(::bit::vector<UnsignedIntegerType>& out, UnsignedInteg
     assert(k > 0);
     assert(x <= k);
     std::size_t b = msbll(k) + 1;
-    out.push_back(x, b); // write the integer x <= k using b = ceil(log2(k+1)) bits 
+    out.push_back(x, b); // write the integer x <= k using b = ceil(log2(k+1)) bits
 }
 
 template <typename UnsignedIntegerType>
-static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
+static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 {
     auto xx = x + 1;
     std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
@@ -72,7 +74,7 @@ static inline void gamma(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 }
 
 template <typename UnsignedIntegerType>
-static inline void delta(::bit::vector<UnsignedIntegerType>& out, std::size_t x) 
+static inline void delta(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 {
     auto xx = x + 1;
     std::size_t b = msbll(static_cast<UnsignedIntegerType>(xx));
@@ -83,7 +85,7 @@ static inline void delta(::bit::vector<UnsignedIntegerType>& out, std::size_t x)
 }
 
 template <typename UnsignedIntegerType>
-static inline void rice(::bit::vector<UnsignedIntegerType>& out, std::size_t x, const std::size_t k) 
+static inline void rice(::bit::vector<UnsignedIntegerType>& out, std::size_t x, const std::size_t k)
 {
     assert(k > 0);
     auto q = x >> k;
@@ -104,12 +106,12 @@ static inline UnsignedIntegerType fixed_width(parser<UnsignedIntegerType>& parsr
 
 template <typename UnsignedIntegerType>
 static inline std::size_t unary(parser<UnsignedIntegerType>& parsr)
-{ 
+{
     return parsr.parse_0();
 }
 
 template <typename UnsignedIntegerType>
-static inline UnsignedIntegerType binary(parser<UnsignedIntegerType>& parsr, std::size_t k) 
+static inline UnsignedIntegerType binary(parser<UnsignedIntegerType>& parsr, std::size_t k)
 {
     assert(k > 0);
     std::size_t b = msbll(k) + 1;
@@ -119,21 +121,21 @@ static inline UnsignedIntegerType binary(parser<UnsignedIntegerType>& parsr, std
 }
 
 template <typename UnsignedIntegerType>
-static inline std::size_t gamma(parser<UnsignedIntegerType>& parsr) 
+static inline std::size_t gamma(parser<UnsignedIntegerType>& parsr)
 {
     std::size_t b = unary(parsr);
     return (static_cast<std::size_t>(parsr.parse_fixed(b)) | (std::size_t(1) << b)) - 1;
 }
 
 template <typename UnsignedIntegerType>
-static inline std::size_t delta(parser<UnsignedIntegerType>& parsr) 
+static inline std::size_t delta(parser<UnsignedIntegerType>& parsr)
 {
     std::size_t b = gamma(parsr);
     return (parsr.parse_fixed(b) | (std::size_t(1) << b)) - 1;
 }
 
 template <typename UnsignedIntegerType>
-static inline std::size_t rice(parser<UnsignedIntegerType>& parsr, const uint64_t k) 
+static inline std::size_t rice(parser<UnsignedIntegerType>& parsr, const uint64_t k)
 {
     assert(k > 0);
     auto q = gamma(parsr);
