@@ -9,7 +9,7 @@ template <class Iterator>
 class rle_view
 {
     public:
-        using symbol_type = Iterator::value_type;
+        using symbol_type = typename Iterator::value_type;
         using length_type = std::size_t;
         class rl_iterator
         {
