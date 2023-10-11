@@ -11,6 +11,8 @@ namespace ef {
 class array
 {
     public:
+        array() : msbrs(bv_t(0)), lsb(0) {}
+
         template <class Iterator>
         array(Iterator start, Iterator stop);
 
@@ -51,7 +53,6 @@ class array
         rs_t msbrs;
         pv_t lsb;
 
-        array() : msbrs(bv_t(0)), lsb(0) {}
         array(build_t pack) : msbrs(pack.first), lsb(pack.second) {} // dummy constructor for const members
 
         template <class Iterator>
