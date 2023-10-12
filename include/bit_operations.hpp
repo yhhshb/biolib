@@ -209,7 +209,7 @@ inline int select(uint32_t x, std::size_t th)
 }
 */
 
-inline int select(uint64_t x, std::size_t th)
+inline int select1(uint64_t x, std::size_t th)
 {
 #ifndef __BMI2__
     // Modified from: Bit Twiddling Hacks
@@ -251,6 +251,11 @@ inline int select(uint64_t x, std::size_t th)
     asm("tzcnt %[bit], %[index]" : [index] "=r"(i) : [bit] "g"(x) : "cc");
     return i;
 #endif
+}
+
+inline int select0(uint64_t x, std::size_t th) 
+{
+    return select1(~x, th);
 }
 
 // ------------------------------------- Vectors -------------------------------------------

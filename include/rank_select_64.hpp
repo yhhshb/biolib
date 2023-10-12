@@ -1,7 +1,5 @@
 #pragma once // just to not pollute the global scope with flags
 
-// includes in rank_select.hpp
-
 namespace bit {
 namespace rs {
 
@@ -23,7 +21,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
         array& operator=(array const&) noexcept = default;
         array& operator=(array&&) noexcept = default;
         std::size_t rank1(std::size_t idx) const;
-        std::size_t rank0(std::size_t idx) const {return idx - rank1();}
+        std::size_t rank0(std::size_t idx) const {return idx - rank1(idx);}
         std::size_t select1(std::size_t th) const;
         std::size_t select0(std::size_t th) const;
         std::size_t size() const noexcept {return _data.size();}
@@ -58,12 +56,13 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
         void build_index();
         inline std::vector<uint64_t> const& payload() const noexcept {return _data.vector_data();}
         inline std::size_t super_blocks_size() const {return interleaved_blocks.size() / 2 - 1;}
-        inline std::size_t super_block_rank(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2);}
-        inline std::size_t block_ranks(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2 + 1);}
-        inline std::size_t super_and_block_partial_rank(uint64_t block_idx) const {
+        inline uint64_t super_block_rank1(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2);}
+        inline std::size_t super_block_rank0(uint64_t super_block_idx) const {return block_bit_size * super_block_block_size * super_block_idx - super_block_rank1(super_block_idx);}
+        inline uint64_t block_ranks(uint64_t super_block_idx) const {return interleaved_blocks.at(super_block_idx * 2 + 1);}
+        inline uint64_t super_and_block_partial_rank(uint64_t block_idx) const {
             uint64_t r = 0;
             uint64_t block = block_idx / super_block_block_size;
-            r += super_block_rank(block);
+            r += super_block_rank1(block);
             uint64_t left = block_idx % super_block_block_size;
             r += block_ranks(block) >> ((7 - left) * 9) & 0x1FF;
             return r;
@@ -112,16 +111,16 @@ METHOD_HEADER::build_index()
     for (uint64_t i = 0; i < payload().size(); ++i) {
         uint64_t word_pop = popcount(payload().at(i));
         uint64_t shift = i % super_block_block_size;
-        if (shift) {
+        if (shift) { // wait to accumulate the prefix sum of the first block
             subranks <<= 9;
             subranks |= cur_subrank;
         }
         next_rank += word_pop;
         cur_subrank += word_pop;
 
-        if (shift == super_block_block_size - 1) {
-            block_rank_pairs.push_back(subranks);
-            block_rank_pairs.push_back(next_rank);
+        if (shift == super_block_block_size - 1) { // only 7 blocks are stored for each header:
+            block_rank_pairs.push_back(subranks);  // only 7 blocks are stored for each super-block of 8 blocks, since the last one is taken care of by the sum of the super-block
+            block_rank_pairs.push_back(next_rank); // this contains the 8th block
             subranks = 0;
             cur_subrank = 0;
         }
@@ -144,7 +143,7 @@ METHOD_HEADER::build_index()
         std::vector<std::size_t> temp_hints;
         uint64_t cur_ones_threshold = select_ones_per_hint;
         for (std::size_t i = 0; i < super_blocks_size(); ++i) {
-            if (super_block_rank(i + 1) > cur_ones_threshold) {
+            if (super_block_rank1(i + 1) > cur_ones_threshold) {
                 temp_hints.push_back(i);
                 cur_ones_threshold += select_ones_per_hint;
             }
@@ -157,7 +156,7 @@ METHOD_HEADER::build_index()
         std::vector<std::size_t> temp_hints;
         uint64_t cur_zeros_threshold = select_zeros_per_hint;
         for (std::size_t i = 0; i < super_blocks_size(); ++i) {
-            if (super_block_rank(i + 1) > cur_zeros_threshold) {
+            if (super_block_rank0(i + 1) > cur_zeros_threshold) {
                 temp_hints.push_back(i);
                 cur_zeros_threshold += select_zeros_per_hint;
             }
@@ -184,39 +183,39 @@ METHOD_HEADER::rank1(std::size_t idx) const
 CLASS_HEADER
 std::size_t 
 METHOD_HEADER::select1(std::size_t th) const
-{
+{   //indeces start from 0: e.g. return the 0th 1 = first 1
     assert(th < size1());
     std::size_t a = 0;
     std::size_t b = super_blocks_size();
 
     if constexpr (with_select1_hints) {
         std::size_t chunk = th / select_ones_per_hint;
-        if (chunk != 0) a = select_hints<with_select_hints>::hints1.at(chunk - 1);
-        b = select_hints<with_select_hints>::hints1.at(chunk) + 1;
+        if (chunk != 0) a = select1_hints<with_select1_hints>::hints1.at(chunk - 1);
+        b = select1_hints<with_select1_hints>::hints1.at(chunk) + 1;
     }
 
     while (b - a > 1) {
         std::size_t mid = a + (b - a) / 2;
-        std::size_t x = super_block_rank(mid);
+        std::size_t x = super_block_rank1(mid);
         if (x <= th) a = mid;
         else b = mid;
     }
     auto super_block_idx = a;
     assert(super_block_idx < super_blocks_size());
 
-    std::size_t cur_rank = super_block_rank(super_block_idx);
+    std::size_t cur_rank = super_block_rank1(super_block_idx);
     assert(cur_rank <= th);
 
     std::size_t rank_in_block_parallel = (th - cur_rank) * ones_step_9;
     auto block_rank = block_ranks(super_block_idx);
     uint64_t block_offset = uleq_step_9(block_rank, rank_in_block_parallel) * ones_step_9 >> 54 & 0x7;
-    cur_rank += block_rank >> (7 - block_offset) * 9 & 0x1FF;
+    cur_rank += block_rank >> ((7 - block_offset) * 9) & 0x1FF;
     assert(cur_rank <= th);
 
     uint64_t word_offset = super_block_idx * super_block_block_size + block_offset;
     uint64_t last = payload().at(word_offset);
     std::size_t remaining_bits = th - cur_rank;
-    auto local_offset = select(last, remaining_bits);
+    auto local_offset = bit::select1(last, remaining_bits);
     // std::cerr << 
     //     "payload[0] = " << payload().at(0) << 
     //     " == " << _data.vector_data().at(0) << 
@@ -237,15 +236,63 @@ METHOD_HEADER::select0(std::size_t th) const
     std::size_t a = 0;
     std::size_t b = super_blocks_size();
 
-    // 0s don't have hints !!!
+    if constexpr (with_select0_hints) {
+        std::size_t chunk = th / select_zeros_per_hint;
+        if (chunk != 0) a = select0_hints<with_select0_hints>::hints0.at(chunk - 1);
+        b = select0_hints<with_select0_hints>::hints0.at(chunk) + 1;
+    }
+
     while (b - a > 1) {
         std::size_t mid = a + (b - a) / 2;
-        std::size_t x = rank0(mid);
+        std::size_t x = super_block_rank0(mid);
         if (x <= th) a = mid;
         else b = mid;
     }
-    assert(a < size());
-    return a;
+    auto super_block_idx = a;
+    assert(super_block_idx < super_blocks_size());
+    std::size_t cur_rank = super_block_rank0(super_block_idx);
+    assert(cur_rank <= th);
+
+    // std::cerr << "th = " << th << "\n";
+    // std::cerr << "super block idx = " << super_block_idx << "\n";
+    // std::cerr << "cur rank = " << cur_rank << "\n";
+    
+    auto block_rank = block_ranks(super_block_idx);
+    // std::cerr << "block rank = " << block_rank << "\n";
+    uint64_t block_offset = 0;
+    {// we can't use bit-wise tricks since we need to compute the number of zeroes in each packed block.
+        std::array<uint16_t, 8> unpacked;
+        for (std::size_t i = 7; i != std::numeric_limits<std::size_t>::max(); --i) {
+            unpacked[i] = block_bit_size * i - (block_rank & 0x1FF);
+            // std::cerr << "unpacked[" << i << "] = " << unpacked.at(i) << "\n";
+            block_rank >>= 9;
+        }
+        while (block_offset < 8 and unpacked.at(block_offset) <= th - cur_rank) {
+            // std::cerr << "unpacked[" << block_offset << "] = " << unpacked.at(block_offset) << "\n";
+            ++block_offset;
+        }
+        --block_offset;
+        
+        // std::cerr << "block offset = " << block_offset << "\n";
+        // std::cerr << "delta rank = " << unpacked.at(block_offset) << "\n";
+        cur_rank += unpacked.at(block_offset);
+    }
+    
+    assert(cur_rank <= th);
+
+    uint64_t word_offset = super_block_idx * super_block_block_size + block_offset;
+    uint64_t last = payload().at(word_offset);
+    std::size_t remaining_bits = th - cur_rank;
+    // std::cerr << 
+    //     "word offset = " << word_offset << 
+    //     ", last = " << last << 
+    //     ", remaining bits = " << remaining_bits << 
+    //     ", local offset = " << local_offset << 
+    //     "\n";
+    auto local_offset = bit::select0(last, remaining_bits);
+    // std::cerr << "local offset = " << local_offset << "\n";
+    // std::cerr << "result = " << word_offset * 64 + local_offset << "\n";
+    return word_offset * 64 + local_offset;
 }
 
 CLASS_HEADER
@@ -272,8 +319,8 @@ METHOD_HEADER::visit(Visitor& visitor)
 {
     visitor.visit(_data);
     visitor.visit(interleaved_blocks);
-    if constexpr (with_select1_hints) visitor.visit(select_hints<with_select_hints>::hints1);
-    if constexpr (with_select0_hints) visitor.visit(select_hints<with_select_hints>::hints0);
+    if constexpr (with_select1_hints) visitor.visit(select1_hints<with_select1_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select0_hints<with_select0_hints>::hints0);
 }
 
 CLASS_HEADER
@@ -283,8 +330,8 @@ METHOD_HEADER::visit(Visitor& visitor) const
 {
     visitor.visit(_data);
     visitor.visit(interleaved_blocks);
-    if constexpr (with_select1_hints) visitor.visit(select_hints<with_select_hints>::hints1);
-    if constexpr (with_select0_hints) visitor.visit(select_hints<with_select_hints>::hints0);
+    if constexpr (with_select1_hints) visitor.visit(select1_hints<with_select1_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select0_hints<with_select0_hints>::hints0);
 }
 
 CLASS_HEADER
