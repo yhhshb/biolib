@@ -70,12 +70,12 @@ class vector
 
                 void find_next_one() noexcept;
 
-                friend bool operator==(const_iterator const& a, const_iterator const& b) 
+                friend bool operator==(one_position_iterator const& a, one_position_iterator const& b) 
                 {
                     bool same_start = a.idx == b.idx;
                     return (&a.parent_vector == &b.parent_vector) and same_start;
                 };
-                friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+                friend bool operator!=(one_position_iterator const& a, one_position_iterator const& b) {return not (a == b);};
         };
 
         vector() noexcept;
