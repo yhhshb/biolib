@@ -29,6 +29,8 @@ class array
 
         std::size_t at(std::size_t idx) const; // access prefix-sum
         std::size_t diff_at(std::size_t idx) const; // access difference
+        std::size_t leq_find(std::size_t s) const; // find the index of the largest element < s
+        std::size_t geq_find(std::size_t s) const; // find the index of the smallest element > s
         std::size_t size() const noexcept;
         std::size_t bit_size() const noexcept;
 
@@ -43,7 +45,7 @@ class array
 
     protected:
         using bv_t = bit::vector<max_width_native_type>;
-        using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true>;
+        using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true, true>;
         using pv_t = packed::vector<max_width_native_type>;
         using build_t = std::pair<rs_t, pv_t>;
 
@@ -111,7 +113,7 @@ array::array(Iterator start, std::size_t n, std::size_t u)
     // build(start, n, u);
 }
 
-#define BUILD_T std::pair<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true>, packed::vector<max_width_native_type>> 
+#define BUILD_T std::pair<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true, true>, packed::vector<max_width_native_type>> 
 
 template <class Iterator>
 BUILD_T

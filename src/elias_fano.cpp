@@ -18,6 +18,18 @@ array::diff_at(std::size_t idx) const
 }
 
 std::size_t 
+array::leq_find(std::size_t s) const
+{
+    return s; // TODO
+}
+
+std::size_t 
+array::geq_find(std::size_t s) const
+{
+    return s; // TODO
+}
+
+std::size_t 
 array::size() const noexcept
 {
     return lsb.size() - 1;
