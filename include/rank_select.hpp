@@ -13,12 +13,17 @@
 namespace bit {
 namespace rs {
 
+#define CLASS_HEADER template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select1_hints, bool with_select0_hints>
+#define METHOD_HEADER array<BitVector, block_bit_size, super_block_block_size, with_select1_hints, with_select0_hints>
+
 /**
  * Static bitvector rank/select data structure.
  * IMPORTANT rank(i) is defined as the number of 1 strictly before position i.
  */
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
-class array : protected select_hints<with_select_hints>
+CLASS_HEADER
+class array 
+    : protected select1_hints<with_select1_hints>, 
+      protected select0_hints<with_select0_hints>
 {
     public:
         using bv_type = BitVector;
@@ -76,14 +81,14 @@ class array : protected select_hints<with_select_hints>
         // - Write specialized class for above problem, replacing the packed vectors 
 };
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::array()
+CLASS_HEADER
+METHOD_HEADER::array()
     : blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
       super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
 {}
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::array(BitVector&& vector) 
+CLASS_HEADER
+METHOD_HEADER::array(BitVector&& vector) 
     : _data(vector), 
       blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
       super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
@@ -91,9 +96,9 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::arr
     build_index();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::rank1(std::size_t idx) const
+METHOD_HEADER::rank1(std::size_t idx) const
 {
     if (idx > _data.size()) throw std::out_of_range("[rank1] idx = " + std::to_string(idx) + " with size = " + std::to_string(_data.size()));
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
@@ -109,16 +114,16 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::ran
     return super_rank + block_rank + local_rank;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::rank0(std::size_t idx) const
+METHOD_HEADER::rank0(std::size_t idx) const
 {
     return idx - rank1(idx);
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::select1(std::size_t th) const
+METHOD_HEADER::select1(std::size_t th) const
 {
     assert(th < size1());
     std::size_t a = 0;
@@ -133,9 +138,9 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::sel
     return a;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::select0(std::size_t th) const
+METHOD_HEADER::select0(std::size_t th) const
 {
     assert(th < size1());
     std::size_t a = 0;
@@ -149,63 +154,63 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::sel
     return a;
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size() const noexcept
+METHOD_HEADER::size() const noexcept
 {
     return _data.size();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size0() const noexcept
+METHOD_HEADER::size0() const noexcept
 {
     return size() - size1(); //rank0(_data.size() - 1) + (_data.at(_data.size() - 1) ? 0 : 1);
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::size1() const noexcept
+METHOD_HEADER::size1() const noexcept
 {
     if (_data.size() == 0) return 0;
     return rank1(_data.size() - 1) + static_cast<std::size_t>(_data.at(_data.size() - 1));
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::bit_size() const noexcept
+METHOD_HEADER::bit_size() const noexcept
 {
     return _data.size() + bit_overhead();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::bit_overhead() const noexcept
+METHOD_HEADER::bit_overhead() const noexcept
 {
     logging_tools::libra logger;
     visit(logger);
     return 8 * logger.get_byte_size() - _data.bit_size();
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 BitVector const&
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::data() const noexcept
+METHOD_HEADER::data() const noexcept
 {
     return _data;
 }
 
-// template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+// CLASS_HEADER
 // void
-// array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::swap(array& other)
+// METHOD_HEADER::swap(array& other)
 // {
 //     _data.swap(other._data);
 //     blocks.swap(other.blocks);
 //     super_blocks.swap(other.super_blocks);
 // }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 void 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::build_index()
+METHOD_HEADER::build_index()
 {
     const std::size_t super_block_bit_size = super_block_block_size * block_bit_size;
     std::size_t prev_block_count = 0;
@@ -257,10 +262,10 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::bui
     // std::cerr << "blocks bit size = " << blocks.bit_size() << ", super blocks bit size = " << super_blocks.bit_size() << "\n";
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 template <class Visitor>
 void 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor)
+METHOD_HEADER::visit(Visitor& visitor)
 {
     visitor.visit(_data);
     visitor.visit(blocks);
@@ -268,10 +273,10 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::vis
     if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 template <class Visitor>
 void 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::visit(Visitor& visitor) const
+METHOD_HEADER::visit(Visitor& visitor) const
 {
     visitor.visit(_data);
     visitor.visit(blocks);
@@ -279,18 +284,21 @@ array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::vis
     if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
 }
 
-template <typename BitVector, std::size_t block_bit_size, std::size_t super_block_block_size, bool with_select_hints>
+CLASS_HEADER
 template <class Loader>
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints> 
-array<BitVector, block_bit_size, super_block_block_size, with_select_hints>::load(Loader& visitor)
+METHOD_HEADER 
+METHOD_HEADER::load(Loader& visitor)
 {
-    array<BitVector, block_bit_size, super_block_block_size, with_select_hints> r;
+    METHOD_HEADER r;
     r._data = decltype(r._data)::load(visitor);
     r.blocks = decltype(r.blocks)::load(visitor);
     r.super_blocks = decltype(r.super_blocks)::load(visitor);
     if constexpr (with_select_hints) visitor.visit(r.hints);
     return r;
 }
+
+#undef CLASS_HEADER
+#undef METHOD_HEADER
 
 } // namespace rs
 } // namespace bit

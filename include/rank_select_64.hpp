@@ -5,9 +5,14 @@
 namespace bit {
 namespace rs {
 
+#define CLASS_HEADER template <bool with_select1_hints, bool with_select0_hints>
+#define METHOD_HEADER array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints>
+
 // Specialisation working with this library's bit-vectors made of 64-bits blocks.
-template <bool with_select_hints>
-class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_hints<with_select_hints>
+CLASS_HEADER
+class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints> 
+    : protected select1_hints<with_select1_hints>, 
+      protected select0_hints<with_select0_hints>
 {
     public:
         using bv_type = bit::vector<uint64_t>;
@@ -73,28 +78,31 @@ class array<bit::vector<uint64_t>, 64, 8, with_select_hints> : protected select_
             bool same_data = a._data == b._data;
             bool same_interleaved_blocks = a.interleaved_blocks == b.interleaved_blocks;
             bool result = same_data and same_interleaved_blocks;
-            if constexpr (with_select_hints) {
-                result &= a.hints == b.hints;
+            if constexpr (with_select1_hints) {
+                result &= a.hints1 == b.hints1;
+            }
+            if constexpr (with_select0_hints) {
+                result &= a.hints0 == b.hints0;
             }
             return result;
         };
         friend bool operator!=(array const& a, array const& b) {return not (a == b);};
 };
 
-template <bool with_select_hints>
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::array()
+CLASS_HEADER
+METHOD_HEADER::array()
 {}
 
-template <bool with_select_hints>
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::array(bit::vector<uint64_t>&& vector)
+CLASS_HEADER
+METHOD_HEADER::array(bit::vector<uint64_t>&& vector)
     : _data(vector)
 {
     build_index();
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 void 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::build_index()
+METHOD_HEADER::build_index()
 {
     std::vector<uint64_t> block_rank_pairs;
     uint64_t next_rank = 0;
@@ -132,7 +140,7 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::build_index()
 
     interleaved_blocks.swap(block_rank_pairs);
 
-    if constexpr (with_select_hints) {
+    if constexpr (with_select1_hints) {
         std::vector<std::size_t> temp_hints;
         uint64_t cur_ones_threshold = select_ones_per_hint;
         for (std::size_t i = 0; i < super_blocks_size(); ++i) {
@@ -142,13 +150,26 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::build_index()
             }
         }
         temp_hints.push_back(super_blocks_size());
-        select_hints<with_select_hints>::hints.swap(temp_hints);
+        select1_hints<with_select1_hints>::hints1.swap(temp_hints);
+    }
+
+    if constexpr (with_select0_hints) {
+        std::vector<std::size_t> temp_hints;
+        uint64_t cur_zeros_threshold = select_zeros_per_hint;
+        for (std::size_t i = 0; i < super_blocks_size(); ++i) {
+            if (super_block_rank(i + 1) > cur_zeros_threshold) {
+                temp_hints.push_back(i);
+                cur_zeros_threshold += select_zeros_per_hint;
+            }
+        }
+        temp_hints.push_back(super_blocks_size());
+        select0_hints<with_select0_hints>::hints0.swap(temp_hints);
     }
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::rank1(std::size_t idx) const
+METHOD_HEADER::rank1(std::size_t idx) const
 {
     assert(idx <= size());
     if (idx == size()) return size1();
@@ -160,18 +181,18 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::rank1(std::size_t idx) c
     return r;
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select1(std::size_t th) const
+METHOD_HEADER::select1(std::size_t th) const
 {
     assert(th < size1());
     std::size_t a = 0;
     std::size_t b = super_blocks_size();
 
-    if constexpr (with_select_hints) {
+    if constexpr (with_select1_hints) {
         std::size_t chunk = th / select_ones_per_hint;
-        if (chunk != 0) a = select_hints<with_select_hints>::hints.at(chunk - 1);
-        b = select_hints<with_select_hints>::hints.at(chunk) + 1;
+        if (chunk != 0) a = select_hints<with_select_hints>::hints1.at(chunk - 1);
+        b = select_hints<with_select_hints>::hints1.at(chunk) + 1;
     }
 
     while (b - a > 1) {
@@ -208,9 +229,9 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select1(std::size_t th) 
     return word_offset * 64 + local_offset;
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select0(std::size_t th) const
+METHOD_HEADER::select0(std::size_t th) const
 {
     assert(th < size0());
     std::size_t a = 0;
@@ -227,53 +248,56 @@ array<bit::vector<uint64_t>, 64, 8, with_select_hints>::select0(std::size_t th) 
     return a;
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 std::size_t 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::bit_overhead() const noexcept 
+METHOD_HEADER::bit_overhead() const noexcept 
 {
     logging_tools::libra logger;
     visit(logger);
     return 8 * logger.get_byte_size() - _data.bit_size();
 }
 
-// template <bool with_select_hints>
+// CLASS_HEADER
 // void 
-// array<bit::vector<uint64_t>, 64, 8, with_select_hints>::swap(array& other)
+// METHOD_HEADER::swap(array& other)
 // {
 //     _data.swap(other._data);
 //     interleaved_blocks.swap(other.interleaved_blocks);
 // }
 
-template <bool with_select_hints>
+CLASS_HEADER
 template <class Visitor>
 void 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::visit(Visitor& visitor)
+METHOD_HEADER::visit(Visitor& visitor)
 {
     visitor.visit(_data);
     visitor.visit(interleaved_blocks);
-    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
+    if constexpr (with_select1_hints) visitor.visit(select_hints<with_select_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select_hints<with_select_hints>::hints0);
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 template <class Visitor>
 void 
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::visit(Visitor& visitor) const
+METHOD_HEADER::visit(Visitor& visitor) const
 {
     visitor.visit(_data);
     visitor.visit(interleaved_blocks);
-    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
+    if constexpr (with_select1_hints) visitor.visit(select_hints<with_select_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select_hints<with_select_hints>::hints0);
 }
 
-template <bool with_select_hints>
+CLASS_HEADER
 template <class Loader>
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>
-array<bit::vector<uint64_t>, 64, 8, with_select_hints>::load(Loader& visitor)
+METHOD_HEADER
+METHOD_HEADER::load(Loader& visitor)
 {
-    array<bit::vector<uint64_t>, 64, 8, with_select_hints> r;
+    METHOD_HEADER r;
     // r.visit(visitor);
     r._data = decltype(r._data)::load(visitor);
     visitor.visit(r.interleaved_blocks);
-    if constexpr (with_select_hints) visitor.visit(r.hints);
+    if constexpr (with_select1_hints) visitor.visit(r.hints1);
+    if constexpr (with_select0_hints) visitor.visit(r.hints0);
     return r;
 }
 
