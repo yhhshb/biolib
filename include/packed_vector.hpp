@@ -51,7 +51,7 @@ class vector
         void shrink_to_fit() noexcept;
         void resize(std::size_t size);
         void clear() noexcept;
-        void swap(vector& other);
+        void swap(vector& other) noexcept;
 
         template <class Visitor>
         void visit(Visitor& visitor) const;
@@ -281,10 +281,11 @@ vector<UnderlyingType>::clear() noexcept
 
 template <typename UnderlyingType>
 void 
-vector<UnderlyingType>::swap(vector& other)
+vector<UnderlyingType>::swap(vector& other) noexcept
 {
-    std::swap(_size, other._size);
     _data.swap(other._data);
+    std::swap(_size, other._size);
+    std::swap(_bitwidth, other._bitwidth);
 }
 
 template <typename UnderlyingType>

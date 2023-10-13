@@ -41,6 +41,13 @@ array::bit_size() const noexcept
     return lsb.bit_size() + msbrs.bit_size();
 }
 
+void 
+array::swap(array& other) noexcept
+{
+    msbrs.swap(other.msbrs);
+    lsb.swap(other.lsb);
+}
+
 std::tuple<std::size_t, std::size_t> 
 array::prev_and_at(std::size_t idx) const
 {

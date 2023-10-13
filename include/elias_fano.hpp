@@ -34,6 +34,8 @@ class array
         std::size_t size() const noexcept;
         std::size_t bit_size() const noexcept;
 
+        void swap(array& other) noexcept;
+
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
