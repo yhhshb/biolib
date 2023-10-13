@@ -62,7 +62,7 @@ class rle_view
                 friend bool operator==(rl_iterator const& a, rl_iterator const& b) 
                 {
                     bool same_position = a.itr == b.itr;
-                    return same_position;
+                    return (&a.parent_view == &b.parent_view) and same_position;
                 }
                 friend bool operator!=(rl_iterator const& a, rl_iterator const& b) { return not (a == b); }
         };

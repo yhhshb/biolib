@@ -17,6 +17,7 @@ int main()
     std::mt19937 gen(seed); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_int_distribution<std::size_t> distrib(0, max_delta);
     std::vector<std::size_t> sequence;
+    std::vector<std::size_t> cumulative_sequence;
     for (std::size_t i = 0; i < vector_size; ++i) {
         sequence.push_back(distrib(gen));
     }
@@ -28,6 +29,7 @@ int main()
         {
             sum += sequence.at(k);
             if (sum != *itr) throw runtime_error("[cumulative_iterator] FAIL");
+            cumulative_sequence.push_back(*itr);
             // std::cerr << "i = " << k << ", seq[" << k << "] = " << sequence.at(k) << ", cumulative sum = " << *itr << "\n";
         }
     }
@@ -39,6 +41,31 @@ int main()
         auto diff_ef = ef_sequence.diff_at(i);
         // std::cerr << "retrieved diff = " << diff_ef << ", true value = " << sequence.at(i) << "\n";
         if (diff_ef != sequence.at(i)) throw runtime_error("FAIL");
+    }
+    {
+        std::size_t i = 0;
+        auto tr = ef_sequence.cbegin();
+        for (auto itr = cumulative_sequence.begin(); itr != cumulative_sequence.end(); ++itr) {
+            if (*tr != *itr) throw runtime_error("FAIL");
+            ++tr;
+        }
+        std::cerr << "const iterator OK\n";
+        std::mt19937 gen(seed); // Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<std::size_t> distrib(0, ef_sequence.size() - 1);
+        i = distrib(gen);
+        std::size_t j = distrib(gen);
+        if (j < i) {auto k = j; j = i; i = k;}
+        auto jend = bit::ef::array::const_iterator(ef_sequence, j);
+        for (auto itr = bit::ef::array::const_iterator(ef_sequence, i); itr != jend; ++itr) {
+            if (*itr != cumulative_sequence.at(i)) throw runtime_error("FAIL");
+            ++i;
+        }
+        std::cerr << "const iterator starting at random positions OK\n";
+    }
+
+    {
+        leq_find
+        geq_find
     }
 
     { // Check writing and reading

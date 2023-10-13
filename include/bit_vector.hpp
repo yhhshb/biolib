@@ -27,7 +27,7 @@ class vector
                 using reference         = value_type&;
 
                 const_iterator(vector const& vec, std::size_t ref_idx);
-                bool operator*() const;
+                value_type operator*() const;
                 const_iterator const& operator++() noexcept;
                 const_iterator operator++(int) noexcept;
 
@@ -50,16 +50,22 @@ class vector
         class one_position_iterator // iterator over select positions
         {
             public:
-                using iterator_category = std::forward_iterator_tag;
+                using iterator_category = std::bidirectional_iterator_tag;
                 using difference_type   = std::ptrdiff_t;
                 using value_type        = std::size_t;
                 using pointer           = value_type*;
                 using reference         = value_type&;
 
                 one_position_iterator(vector const& vec, std::size_t ref_idx);
-                std::size_t operator*() const;
+                one_position_iterator(one_position_iterator const&) noexcept = default;
+                one_position_iterator(one_position_iterator&&) noexcept = default;
+                one_position_iterator& operator=(one_position_iterator const&) noexcept = default;
+                one_position_iterator& operator=(one_position_iterator&&) noexcept = default;
+                value_type operator*() const;
                 one_position_iterator const& operator++() noexcept;
                 one_position_iterator operator++(int) noexcept;
+                one_position_iterator const& operator--() noexcept;
+                one_position_iterator operator--(int) noexcept;
 
                 template <typename I>
                 one_position_iterator operator+(I delta_on_the_actual_sequence_of_bits) noexcept;
@@ -67,8 +73,10 @@ class vector
             private:
                 vector const& parent_vector;
                 std::size_t idx;
+                // TODO add buffer
 
                 void find_next_one() noexcept;
+                void find_prev_one() noexcept;
 
                 friend bool operator==(one_position_iterator const& a, one_position_iterator const& b) 
                 {
@@ -460,7 +468,7 @@ vector<UnsignedIntegerType>::const_iterator::const_iterator(vector const& vec, s
 }
 
 template <class UnsignedIntegerType>
-bool
+typename vector<UnsignedIntegerType>::const_iterator::value_type
 vector<UnsignedIntegerType>::const_iterator::operator*() const
 {
     assert(idx < parent_vector.bsize);
@@ -521,7 +529,7 @@ vector<UnsignedIntegerType>::one_position_iterator::one_position_iterator(vector
 }
 
 template <class UnsignedIntegerType>
-std::size_t
+typename vector<UnsignedIntegerType>::one_position_iterator::value_type
 vector<UnsignedIntegerType>::one_position_iterator::operator*() const
 {
     return idx;
@@ -546,10 +554,38 @@ vector<UnsignedIntegerType>::one_position_iterator::operator++(int) noexcept
 }
 
 template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator const& 
+vector<UnsignedIntegerType>::one_position_iterator::operator--() noexcept
+{
+    if (idx != ~decltype(idx)(0)) {
+        --idx;
+        find_prev_one();
+    }
+    return *this;
+}
+
+template <class UnsignedIntegerType>
+typename vector<UnsignedIntegerType>::one_position_iterator 
+vector<UnsignedIntegerType>::one_position_iterator::operator--(int) noexcept
+{
+    auto current = *this;
+    operator--();
+    return current;
+}
+
+template <class UnsignedIntegerType>
 void
 vector<UnsignedIntegerType>::one_position_iterator::find_next_one() noexcept
 {
     while(idx < parent_vector.size() and not parent_vector.at(idx)) ++idx;
+}
+
+template <class UnsignedIntegerType>
+void
+vector<UnsignedIntegerType>::one_position_iterator::find_prev_one() noexcept
+{
+    while(idx != 0 and not parent_vector.at(idx)) --idx;
+    if (not parent_vector.at(0)) --idx; // underflow
 }
 
 template <class UnsignedIntegerType>

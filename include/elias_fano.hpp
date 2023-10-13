@@ -10,17 +10,100 @@ namespace ef {
 
 class array
 {
+    protected:
+        using bv_t = bit::vector<max_width_native_type>;
+        using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true, true>;
+        using pv_t = packed::vector<max_width_native_type>;
+        using build_t = std::pair<rs_t, pv_t>;
+
+        std::tuple<std::size_t, std::size_t> prev_and_at(std::size_t idx) const;
+
     public:
+        class const_iterator
+        {
+            public:
+                using iterator_category = std::bidirectional_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = std::size_t;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+
+                const_iterator(array const& view, std::size_t idx);
+                value_type operator*() const noexcept;
+                const_iterator const& operator++() noexcept;
+                const_iterator operator++(int) noexcept;
+
+                const_iterator const& operator--() noexcept;
+                const_iterator operator--(int) noexcept;
+            
+            private:
+                struct delegate {
+                    array const& parent_view;
+                    std::size_t index;
+                    std::size_t starting_position;
+                    std::size_t buffered_msb;
+                    delegate(array const& view, std::size_t idx) 
+                        : parent_view(view), index(idx + 1), starting_position(0), buffered_msb(0)
+                    {
+                        if (index > parent_view.size()) throw std::out_of_range("[Elias-Fano] iterator out of range");
+                        else if (index < parent_view.size()) {
+                            starting_position = parent_view.msbrs.select1(index);
+                            buffered_msb = starting_position - index;
+                        }
+                    }
+                };
+                static const value_type reverse_out_of_bound_marker = std::numeric_limits<value_type>::max();
+                array const& parent_view;
+                std::size_t index;
+                bv_t::one_position_iterator one_itr;
+                std::size_t buffered_msb;
+
+                const_iterator(delegate const& helper);
+                friend bool operator==(const_iterator const& a, const_iterator const& b) 
+                {
+                    bool same_parent = &a.parent_view == &b.parent_view;
+                    bool same_index = a.index == b.index;
+                    return same_parent and same_index;
+                };
+                friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+        };
+
+        class diff_iterator
+        {
+            public:
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type   = std::ptrdiff_t;
+                using value_type        = std::size_t;
+                using pointer           = value_type*;
+                using reference         = value_type&;
+
+                diff_iterator(array const& view, std::size_t idx);
+                value_type operator*() const noexcept;
+                diff_iterator const& operator++() noexcept;
+                diff_iterator operator++(int) noexcept;
+            
+            private:
+                const_iterator itr;
+                value_type prev;
+                friend bool operator==(diff_iterator const& a, diff_iterator const& b) 
+                {
+                    bool same_itr = a.itr == b.itr;
+                    if (same_itr and a.prev != b.prev) throw std::runtime_error("[prev iterator] not equal despite pointing to the same position");
+                    return same_itr;
+                };
+                friend bool operator!=(diff_iterator const& a, diff_iterator const& b) {return not (a == b);};
+        };
+
         array() : msbrs(bv_t(0)), lsb(0) {}
 
         template <class Iterator>
-        array(Iterator start, Iterator stop);
+        array(Iterator start, Iterator stop) : array(this->build(start, stop)) {}
 
         template <class Iterator>
-        array(Iterator start, std::size_t n);
+        array(Iterator start, std::size_t n) : array(this->build(start, n)) {}
 
         template <class Iterator>
-        array(Iterator start, std::size_t n, std::size_t u);
+        array(Iterator start, std::size_t n, std::size_t u) : array(this->build(start, n, u)) {}
 
         array(array const& other) noexcept = default;
         array(array&& other) noexcept = default;
@@ -34,6 +117,16 @@ class array
         std::size_t size() const noexcept;
         std::size_t bit_size() const noexcept;
 
+        const_iterator cbegin() const;
+        const_iterator cend() const;
+        const_iterator begin() const;
+        const_iterator end() const;
+
+        diff_iterator cdiff_begin() const;
+        diff_iterator cdiff_end() const;
+        diff_iterator diff_begin() const;
+        diff_iterator diff_end() const;
+
         void swap(array& other) noexcept;
 
         template <class Visitor>
@@ -44,14 +137,6 @@ class array
 
         template <class Loader>
         static array load(Loader& visitor);
-
-    protected:
-        using bv_t = bit::vector<max_width_native_type>;
-        using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true, true>;
-        using pv_t = packed::vector<max_width_native_type>;
-        using build_t = std::pair<rs_t, pv_t>;
-
-        std::tuple<std::size_t, std::size_t> prev_and_at(std::size_t idx) const;
 
     private:
         rs_t msbrs;
@@ -83,37 +168,6 @@ class array
         friend bool operator==(array const& a, array const& b);
         friend bool operator!=(array const& a, array const& b);
 };
-
-template <class Iterator>
-array::array(Iterator start, Iterator stop)
-    : array(this->build(start, stop))
-    //msbrs(bv_t()), lsb(packed::vector<max_width_native_type>(0))
-{
-    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    // typedef typename std::iterator_traits<Iterator>::iterator_category category;
-    // build(start, stop, category());
-}
-
-template <class Iterator>
-array::array(Iterator start, std::size_t n)
-    : array(this->build(start, n))
-    //lsb(packed::vector<max_width_native_type>(0))
-{
-    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    // if (not n) return;
-    // typedef typename std::iterator_traits<Iterator>::iterator_category category;
-    // build(start, n, category());
-}
-
-template <class Iterator>
-array::array(Iterator start, std::size_t n, std::size_t u)
-    : array(this->build(start, n, u))
-    //lsb(packed::vector<max_width_native_type>(0))
-{
-    // static_assert(not std::numeric_limits<typename Iterator::value_type>::is_signed, "[Elias-Fano] sequence must be unsigned");
-    // if (not n) return;
-    // build(start, n, u);
-}
 
 #define BUILD_T std::pair<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true, true>, packed::vector<max_width_native_type>> 
 
