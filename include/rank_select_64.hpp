@@ -15,7 +15,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
     public:
         using bv_type = bit::vector<uint64_t>;
 
-        array(bit::vector<uint64_t>&& vector);
+        array(bit::vector<uint64_t>&& vector) : _data(vector) {build_index();}
         array(array const&) noexcept = default;
         array(array&&) noexcept = default;
         array& operator=(array const&) noexcept = default;
@@ -27,8 +27,10 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
         std::size_t size() const noexcept {return _data.size();}
         std::size_t size0() const noexcept {return size() - size1();}
         std::size_t size1() const noexcept {return *(interleaved_blocks.end() - 2);}
-        std::size_t bit_size() const noexcept {return _data.size() + bit_overhead();}
-        std::size_t bit_overhead() const noexcept; // {return interleaved_blocks.size() * sizeof(uint64_t) * 8;}
+        std::size_t bit_size() const noexcept;
+        std::size_t bit_overhead() const noexcept {return bit_size() - _data.bit_size();}
+
+        void swap(array& other) noexcept;
 
         bit::vector<uint64_t> const& data() const noexcept {return _data;}
         // void swap(array& other);
@@ -52,7 +54,7 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
         bit::vector<uint64_t> _data;
         std::vector<uint64_t> interleaved_blocks;
 
-        array();
+        array() {}
         void build_index();
         inline std::vector<uint64_t> const& payload() const noexcept {return _data.vector_data();}
         inline std::size_t super_blocks_size() const {return interleaved_blocks.size() / 2 - 1;}
@@ -87,17 +89,6 @@ class array<bit::vector<uint64_t>, 64, 8, with_select1_hints, with_select0_hints
         };
         friend bool operator!=(array const& a, array const& b) {return not (a == b);};
 };
-
-CLASS_HEADER
-METHOD_HEADER::array()
-{}
-
-CLASS_HEADER
-METHOD_HEADER::array(bit::vector<uint64_t>&& vector)
-    : _data(vector)
-{
-    build_index();
-}
 
 CLASS_HEADER
 void 
@@ -296,21 +287,21 @@ METHOD_HEADER::select0(std::size_t th) const
 }
 
 CLASS_HEADER
+void 
+METHOD_HEADER::swap(array& other) noexcept
+{
+    _data.swap(other._data);
+    interleaved_blocks.swap(other.interleaved_blocks);
+}
+
+CLASS_HEADER
 std::size_t 
-METHOD_HEADER::bit_overhead() const noexcept 
+METHOD_HEADER::bit_size() const noexcept 
 {
     logging_tools::libra logger;
     visit(logger);
-    return 8 * logger.get_byte_size() - _data.bit_size();
+    return 8 * logger.get_byte_size();
 }
-
-// CLASS_HEADER
-// void 
-// METHOD_HEADER::swap(array& other)
-// {
-//     _data.swap(other._data);
-//     interleaved_blocks.swap(other.interleaved_blocks);
-// }
 
 CLASS_HEADER
 template <class Visitor>
