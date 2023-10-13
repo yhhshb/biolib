@@ -43,6 +43,8 @@ class array
         std::size_t bit_size() const noexcept;
         std::size_t bit_overhead() const noexcept;
 
+        void swap(array& other) noexcept;
+
         BitVector const& data() const noexcept;
         // void swap(array& other);
 
@@ -69,8 +71,11 @@ class array
             bool same_blocks = a.blocks == b.blocks;
             bool same_super_blocks = a.super_blocks == b.super_blocks;
             bool result = same_data and same_blocks and same_super_blocks;
-            if constexpr (with_select_hints) {
-                result &= a.hints == b.hints;
+            if constexpr (with_select1_hints) {
+                result &= a.hints1 == b.hints1;
+            }
+            if constexpr (with_select0_hints) {
+                result &= a.hints0 == b.hints0;
             }
             return result;
         };
@@ -83,14 +88,14 @@ class array
 
 CLASS_HEADER
 METHOD_HEADER::array()
-    : blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
+    : blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size * super_block_block_size))))), 
       super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
 {}
 
 CLASS_HEADER
 METHOD_HEADER::array(BitVector&& vector) 
     : _data(vector), 
-      blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size))))), 
+      blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(block_bit_size * super_block_block_size))))), 
       super_blocks(packed::vector(static_cast<std::size_t>(std::ceil(std::log2(_data.size())))))
 {
     build_index();
@@ -104,12 +109,11 @@ METHOD_HEADER::rank1(std::size_t idx) const
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
     std::size_t block_idx = idx / block_bit_size;
     std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
-    
     std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
+    std::size_t local_rank = 0;
+    for (auto itr = _data.cbegin() + block_idx * block_bit_size; itr != _data.cbegin() + idx; ++itr) local_rank += *itr; // no pre-computed table here
     // std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
     // std::cerr << "block rank [" << block_idx << "] = " << block_rank << "\n";
-    std::size_t local_rank = 0;
-    for (auto itr = _data.cbegin() + idx / block_bit_size * block_bit_size; itr != _data.cbegin() + idx; ++itr) local_rank += *itr; // no pre-computed table here
     // std::cerr << "local rank =" << local_rank << "\n";
     return super_rank + block_rank + local_rank;
 }
@@ -142,7 +146,7 @@ CLASS_HEADER
 std::size_t 
 METHOD_HEADER::select0(std::size_t th) const
 {
-    assert(th < size1());
+    assert(th < size0());
     std::size_t a = 0;
     std::size_t b = _data.size();
     while(b - a > 1) {
@@ -180,16 +184,25 @@ CLASS_HEADER
 std::size_t 
 METHOD_HEADER::bit_size() const noexcept
 {
-    return _data.size() + bit_overhead();
+    logging_tools::libra logger;
+    visit(logger);
+    return 8 * logger.get_byte_size();
 }
 
 CLASS_HEADER
 std::size_t 
 METHOD_HEADER::bit_overhead() const noexcept
 {
-    logging_tools::libra logger;
-    visit(logger);
-    return 8 * logger.get_byte_size() - _data.bit_size();
+    return bit_size() - _data.bit_size();
+}
+
+CLASS_HEADER
+void 
+METHOD_HEADER::swap(array& other) noexcept
+{
+    _data.swap(other._data);
+    blocks.swap(other.blocks);
+    super_blocks.swap(other.super_blocks);
 }
 
 CLASS_HEADER
@@ -219,6 +232,8 @@ METHOD_HEADER::build_index()
     std::size_t index = 0;
     for (auto itr = _data.cbegin(); itr != _data.cend(); ++itr, ++index) {
         if (index != 0 and index % block_bit_size == 0) {
+            // std::cerr << "bit width = " << blocks.bit_width() << " ";
+            // std::cerr << "rank of position " << index << " = " << prev_block_count << "\n";
             blocks.push_back(prev_block_count); // push previous block count
             prev_block_count = cumulative_block_count;
             if (index % super_block_bit_size == 0) { // closing super-block
@@ -260,6 +275,11 @@ METHOD_HEADER::build_index()
     blocks.resize(blocks.size());
     super_blocks.resize(super_blocks.size());
     // std::cerr << "blocks bit size = " << blocks.bit_size() << ", super blocks bit size = " << super_blocks.bit_size() << "\n";
+
+    // for (std::size_t i = 0; i < blocks.size(); ++i) { 
+    //     std::cerr << blocks.template at<std::size_t>(i) << ", ";
+    // }
+    // std::cerr << "\n";
 }
 
 CLASS_HEADER
@@ -270,7 +290,8 @@ METHOD_HEADER::visit(Visitor& visitor)
     visitor.visit(_data);
     visitor.visit(blocks);
     visitor.visit(super_blocks);
-    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
+    if constexpr (with_select1_hints) visitor.visit(select1_hints<with_select1_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select0_hints<with_select0_hints>::hints0);
 }
 
 CLASS_HEADER
@@ -281,7 +302,8 @@ METHOD_HEADER::visit(Visitor& visitor) const
     visitor.visit(_data);
     visitor.visit(blocks);
     visitor.visit(super_blocks);
-    if constexpr (with_select_hints) visitor.visit(select_hints<with_select_hints>::hints);
+    if constexpr (with_select1_hints) visitor.visit(select1_hints<with_select1_hints>::hints1);
+    if constexpr (with_select0_hints) visitor.visit(select0_hints<with_select0_hints>::hints0);
 }
 
 CLASS_HEADER
@@ -293,7 +315,8 @@ METHOD_HEADER::load(Loader& visitor)
     r._data = decltype(r._data)::load(visitor);
     r.blocks = decltype(r.blocks)::load(visitor);
     r.super_blocks = decltype(r.super_blocks)::load(visitor);
-    if constexpr (with_select_hints) visitor.visit(r.hints);
+    if constexpr (with_select1_hints) visitor.visit(r.hints1);
+    if constexpr (with_select0_hints) visitor.visit(r.hints0);
     return r;
 }
 
