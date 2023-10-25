@@ -5,8 +5,6 @@
 #include "packed_vector.hpp"
 #include "rank_select.hpp"
 
-#include <iostream>
-
 namespace bit {
 namespace ef {
 
