@@ -190,7 +190,7 @@ array::build(Iterator start, std::size_t n, std::size_t u)
     packed::vector loclsb(l);
     if (l) {
         loclsb.reserve(n);
-        loclsb.push_back(0);
+        loclsb.push_back(static_cast<std::size_t>(0));
     }
     --n; // restore true size
 
