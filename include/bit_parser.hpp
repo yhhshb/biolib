@@ -48,7 +48,7 @@ template <typename UnsignedIntegerType>
 UnsignedIntegerType 
 parser<UnsignedIntegerType>::parse_fixed(std::size_t l)
 {
-    UnsignedIntegerType val;
+    UnsignedIntegerType val = 0;
     if (l <= ::bit::size(val)) throw std::length_error("[bit::parser] requested integer does not fit in the return type");
     if (available < l) fill_buf();
     
