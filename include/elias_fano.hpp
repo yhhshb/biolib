@@ -5,6 +5,8 @@
 #include "packed_vector.hpp"
 #include "rank_select.hpp"
 
+#include <iostream>
+
 namespace bit {
 namespace ef {
 
@@ -14,7 +16,7 @@ class array
         using bv_t = bit::vector<max_width_native_type>;
         using rs_t = rs::array<bv_t, 8 * sizeof(max_width_native_type), 8, true, true>;
         using pv_t = packed::vector<max_width_native_type>;
-        using build_t = std::pair<rs_t, pv_t>;
+        using build_t = std::tuple<rs_t, pv_t, std::size_t>;
 
         std::tuple<std::size_t, std::size_t> prev_and_at(std::size_t idx) const;
 
@@ -35,6 +37,8 @@ class array
 
                 const_iterator const& operator--() noexcept;
                 const_iterator operator--(int) noexcept;
+
+                // std::size_t get_idx() const noexcept {return index;}
             
             private:
                 struct delegate {
@@ -42,15 +46,7 @@ class array
                     std::size_t index;
                     std::size_t starting_position;
                     std::size_t buffered_msb;
-                    delegate(array const& view, std::size_t idx) 
-                        : parent_view(view), index(idx + 1), starting_position(0), buffered_msb(0)
-                    {
-                        if (index > parent_view.size()) throw std::out_of_range("[Elias-Fano] iterator out of range");
-                        else if (index < parent_view.size()) {
-                            starting_position = parent_view.msbrs.select1(index);
-                            buffered_msb = starting_position - index;
-                        }
-                    }
+                    delegate(array const& view, std::size_t idx);
                 };
                 static const value_type reverse_out_of_bound_marker = std::numeric_limits<value_type>::max();
                 array const& parent_view;
@@ -66,6 +62,12 @@ class array
                     return same_parent and same_index;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
+                friend difference_type operator-(const_iterator const& a, const_iterator const& b)
+                {
+                    bool same_parent = &a.parent_view == &b.parent_view;
+                    if (not same_parent) throw std::runtime_error("[Elias-Fano const_iterator] difference between two un-related iterators");
+                    return a.index - b.index;
+                }
         };
 
         class diff_iterator
@@ -112,8 +114,8 @@ class array
 
         std::size_t at(std::size_t idx) const; // access prefix-sum
         std::size_t diff_at(std::size_t idx) const; // access difference
-        std::size_t leq_find(std::size_t s) const; // find the index of the largest element < s
-        std::size_t geq_find(std::size_t s) const; // find the index of the smallest element > s
+        std::size_t lt_find(std::size_t s, bool ignore_duplicates = false) const; // find the index of the largest element < s
+        std::size_t gt_find(std::size_t s, bool ignore_duplicates = false) const; // find the index of the smallest element > s
         std::size_t size() const noexcept;
         std::size_t bit_size() const noexcept;
 
@@ -141,8 +143,10 @@ class array
     private:
         rs_t msbrs;
         pv_t lsb;
+        std::size_t _size;
 
-        array(build_t pack) : msbrs(pack.first), lsb(pack.second) {} // dummy constructor for const members
+        array(build_t pack) : msbrs(std::get<0>(pack)), lsb(std::get<1>(pack)), _size(std::get<2>(pack)) {} // dummy constructor for const members
+        std::size_t lsb_at(std::size_t idx) const;
 
         template <class Iterator>
         static build_t build(Iterator start, std::size_t n, std::size_t u); // main construction function
@@ -169,7 +173,7 @@ class array
         friend bool operator!=(array const& a, array const& b);
 };
 
-#define BUILD_T std::pair<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true, true>, packed::vector<max_width_native_type>> 
+#define BUILD_T std::tuple<rs::array<bit::vector<max_width_native_type>, 8 * sizeof(max_width_native_type), 8, true, true>, packed::vector<max_width_native_type>, std::size_t> 
 
 template <class Iterator>
 BUILD_T
@@ -184,8 +188,10 @@ array::build(Iterator start, std::size_t n, std::size_t u)
     msb.resize(n + (u >> l) + 1, false);
     msb.set(0);
     packed::vector loclsb(l);
-    loclsb.reserve(n);
-    if (l) loclsb.push_back(0);
+    if (l) {
+        loclsb.reserve(n);
+        loclsb.push_back(0);
+    }
     --n; // restore true size
 
     uint64_t prev = 0; // for convenience we added a virtual 0 at the beginning, so the first item is always 0.
@@ -196,15 +202,16 @@ array::build(Iterator start, std::size_t n, std::size_t u)
         msb.set((v >> l) + i + 1); // +1 because n+1 before
         prev = v;
     }
+    if (l) assert(loclsb.size() == (n + (l ? 1 : 0)));
     rs_t temp(std::move(msb));
-    return std::make_pair(temp, loclsb);
+    return std::make_tuple(temp, loclsb, n);
 }
 
 template <class Iterator>
 BUILD_T
 array::build(Iterator start, std::size_t n, std::random_access_iterator_tag)
 {
-    std::size_t u = *(start + n - 1);
+    std::size_t u = *(start + (n - 1));
     return build(start, n, u);
 }
 
@@ -244,6 +251,7 @@ array::build(Iterator start, Iterator stop, std::forward_iterator_tag)
         assert(*itr >= 0);
         u = std::max(u, *itr);
     }
+    // std::cerr << "n = " << n << ", u = " << u << "\n";
     return build(start, n, std::forward_iterator_tag());
 }
 
@@ -261,6 +269,7 @@ array::visit(Visitor& visitor) const
 {
     visitor.visit(msbrs);
     visitor.visit(lsb);
+    visitor.visit(_size);
 }
 
 template <class Visitor>
@@ -269,6 +278,7 @@ array::visit(Visitor& visitor)
 {
     visitor.visit(msbrs);
     visitor.visit(lsb);
+    visitor.visit(_size);
 }
 
 template <class Loader>

@@ -70,6 +70,7 @@ class vector
         
         vector();
         std::tuple<std::size_t, long long> index_to_ut_coordinates(std::size_t idx) const noexcept;
+        void resize_data(std::size_t size);
 
         friend bool operator==(vector const& a, vector const& b) 
         {
@@ -103,7 +104,7 @@ vector<UnderlyingType>::push_back(T val)
 {
     assert(val < (static_cast<std::size_t>(1) << _bitwidth));
     // throw std::runtime_error("[packed vector] The value that is being pushed back is wider than the bitwidth");
-    resize(_size + 1);
+    resize_data(_size + 1);
     auto [idx, shift] = index_to_ut_coordinates(_size);
     // std::cerr << idx + ut_overhead + 1 << "\n";
     // std::cerr << "_size = " << _size << std::endl;
@@ -267,6 +268,14 @@ vector<UnderlyingType>::shrink_to_fit() noexcept
 template <typename UnderlyingType>
 void 
 vector<UnderlyingType>::resize(std::size_t size)
+{
+    resize_data(size);
+    _size = size;
+}
+
+template <typename UnderlyingType>
+void 
+vector<UnderlyingType>::resize_data(std::size_t size)
 {
     _data.resize(size * _bitwidth / ut_bit_size + 1);
 }
