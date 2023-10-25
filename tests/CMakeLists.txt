@@ -32,5 +32,6 @@ add_test_suite(popcount test_popcount.cpp)
 add_test_suite(traits traits_examples.cpp)
 add_test_suite(io test_io.cpp)
 add_test_suite(codes test_codes.cpp)
+add_test_suite(rlev test_rle_view.cpp)
 
 

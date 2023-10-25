@@ -23,14 +23,14 @@ class rle_view
                 rl_iterator(rle_view const& view, Iterator iterator) 
                     : parent_view(view), itr(iterator), run_length(0)
                 {
-                    increment();
+                    init();
                 }
 
                 value_type operator*() const noexcept {return run_length;}
 
                 rl_iterator const& operator++()
                 {
-                    return increment();
+                    return advance();
                 }
 
                 rl_iterator operator++(int) 
@@ -40,29 +40,50 @@ class rle_view
                     return current;
                 }
 
-                symbol_type get_symbol() const {return current_symbol;}
+                symbol_type get_symbol() const {return *itr;}
 
             private:
                 rle_view const& parent_view;
                 Iterator itr;
-                symbol_type current_symbol;
                 length_type run_length;
 
-                rl_iterator const& increment() 
+                void init()
                 {
                     run_length = 0;
                     if (itr != parent_view.itr_stop) {
-                        current_symbol = *itr;
-                        while (current_symbol == *itr and itr != parent_view.itr_stop) {
+                        auto cur_val = *itr;
+                        decltype(itr) prev;
+                        while (*itr == cur_val and itr != parent_view.itr_stop) {
+                            prev = itr++;
                             ++run_length;
                         }
+                        itr = prev;
+                    }
+                }
+
+                rl_iterator const& advance() 
+                {
+                    run_length = 0;
+                    if (itr != parent_view.itr_stop) ++itr;
+                    if (itr != parent_view.itr_stop) {
+                        auto cur_val = *itr;
+                        decltype(itr) prev;
+                        while (itr != parent_view.itr_stop and *itr == cur_val) {
+                            prev = itr;
+                            ++itr;
+                            ++run_length;
+                        }
+                        itr = prev;
+                        assert(run_length);
                     }
                     return *this;
                 }
+
                 friend bool operator==(rl_iterator const& a, rl_iterator const& b) 
                 {
+                    bool same_view = &a.parent_view == &b.parent_view;
                     bool same_position = a.itr == b.itr;
-                    return (&a.parent_view == &b.parent_view) and same_position;
+                    return same_view and same_position;
                 }
                 friend bool operator!=(rl_iterator const& a, rl_iterator const& b) { return not (a == b); }
         };
