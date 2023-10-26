@@ -4,6 +4,18 @@ namespace bit {
 namespace ef {
 
 std::size_t 
+array::front() const
+{
+    return at(0);
+}
+
+std::size_t 
+array::back() const
+{
+    return at(size() - 1);
+}
+
+std::size_t 
 array::at(std::size_t idx) const
 {
     if (idx >= size()) throw std::out_of_range("[Elias-Fano] index out of range");
@@ -22,34 +34,25 @@ std::size_t
 array::lt_find(std::size_t s, bool ignore_duplicates) const // ignore duplicates on the cumulative sum
 {
     auto hb = s >> lsb.bit_width();
-    // auto start_idx = hb ? msbrs.select1(hb - 1) - (hb - 1) : 0; // TODO remove start idx
-    auto itr = const_iterator(*this, hb ? msbrs.select1(hb - 1) - (hb - 1) : 0);
-    auto start = begin();
     auto stop = cend();
-    std::pair<std::size_t, std::size_t> val_run = {*itr, 0};
-    while (itr != start and *itr == val_run.first) {
-        --itr; // we need to sync the beginning of the current run
+    auto start = begin();
+    auto itr = const_iterator(*this, hb ? msbrs.select0(hb - 1) - hb - 1 : 0);
+    while(*itr < s and itr != stop) ++itr; // find block start
+    if (itr == stop) itr = const_iterator(*this, size() - 1);
+    else --itr;
+    if (ignore_duplicates) {
+        auto cur_val = *itr;
+        while(*itr == cur_val and itr != start) --itr;
+        if (itr != start) ++itr; // reposition to beginning of run
     }
-    val_run = {-1, 0};
-    do {
-        if (itr != stop) val_run.first = *itr;
-        val_run.second = 0;
-        while(*itr == val_run.first) { // count run length of equal values
-            // std::cerr << "*itr = " << *itr << "current value = " << val_run.first << "\n";
-            ++itr;
-            ++val_run.second;
-        }
-    } while (*itr < s and itr != stop);
-    assert(itr == stop or *itr >= s);
-    // std::cerr << "idx = " << itr - start << ", run length = " << val_run.second << "\n";
-    return (itr - start) - (ignore_duplicates ? val_run.second : 1); // if ignoring duplicates, return the index at the beginning of the run
+    return itr - start;
 }
 
 std::size_t
 array::gt_find(std::size_t s, bool ignore_duplicates) const // ignore duplicates on the cumulative sum, not the difference
 {
     auto hb = s >> lsb.bit_width();
-    auto start_idx = hb ? msbrs.select1(hb) - hb : 0;
+    auto start_idx = hb ? msbrs.select0(hb - 1) - hb : 0; // msbrs.select0(hb - 1) - (hb - 1) - 1, but the two 1s cancel out
     auto itr = const_iterator(*this, start_idx);
     auto stop = cend();
     for (; *itr <= s and itr != stop; ++itr) {
@@ -174,11 +177,11 @@ array::const_iterator::const_iterator(array const& view, std::size_t idx)
 {}
 
 array::const_iterator::delegate::delegate(array const& view, std::size_t idx) 
-    : parent_view(view), index(idx + 1), starting_position(0), buffered_msb(0)
+    : parent_view(&view), index(idx + 1), starting_position(0), buffered_msb(0)
 {
-    if (idx > parent_view.size()) throw std::out_of_range("[Elias-Fano] iterator out of range");
-    else if (idx < parent_view.size()) {
-        starting_position = parent_view.msbrs.select1(index);
+    if (idx > parent_view->size()) throw std::out_of_range("[Elias-Fano] iterator out of range");
+    else if (idx < parent_view->size()) {
+        starting_position = parent_view->msbrs.select1(index);
         buffered_msb = starting_position - index;
     } else {
         // idx == size() --> cend // nothing to do
@@ -188,15 +191,15 @@ array::const_iterator::delegate::delegate(array const& view, std::size_t idx)
 array::const_iterator::const_iterator(delegate const& helper)
     : parent_view(helper.parent_view), 
       index(helper.index), 
-      one_itr(bv_t::one_position_iterator(parent_view.msbrs.data(), helper.starting_position)), 
+      one_itr(bv_t::one_position_iterator(parent_view->msbrs.data(), helper.starting_position)), 
       buffered_msb(helper.buffered_msb)
 {}
 
 array::const_iterator::value_type
 array::const_iterator::operator*() const noexcept
 {
-    auto msb = buffered_msb << parent_view.lsb.bit_width();
-    auto lsb = parent_view.lsb_at(index);
+    auto msb = buffered_msb << parent_view->lsb.bit_width();
+    auto lsb = parent_view->lsb_at(index);
     return msb | lsb;
 }
 
@@ -204,7 +207,7 @@ array::const_iterator const&
 array::const_iterator::operator++() noexcept
 {
     // std::cerr << "index = " << index << "\n";
-    if (index < parent_view.size()+1) {
+    if (index < parent_view->size()+1) {
         auto old_pos = *one_itr;
         // std::cerr << "[++] old position = " << old_pos << " ";
         ++index;

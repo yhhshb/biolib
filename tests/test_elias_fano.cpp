@@ -14,8 +14,8 @@ void test_const_iterator_forward_access(bit::ef::array const& ef_sequence, std::
 void test_const_iterator_reverse_access(bit::ef::array const& ef_sequence, std::vector<std::size_t> const& cumulative_sequence);
 void test_const_iterator_random_access(std::mt19937& gen, bit::ef::array const& ef_sequence, std::vector<std::size_t> const& cumulative_sequence);
 void test_rw(bit::ef::array const& ef_sequence);
-void test_lg_find_simple_example();
 void test_lg_find(std::mt19937& gen, bit::ef::array const& ef_sequence, std::vector<std::size_t> const& cumulative_sequence);
+void test_lg_find_simple_example();
 
 int main()
 {
@@ -33,8 +33,8 @@ int main()
     test_const_iterator_forward_access(efseq, cseq);
     test_const_iterator_reverse_access(efseq, cseq);
     test_const_iterator_random_access(gen, efseq, cseq);
-    test_lg_find_simple_example();
     test_lg_find(gen, efseq, cseq);
+    test_lg_find_simple_example();
 
     std::cerr << "Everything is OK\n";
     return 0;
@@ -113,6 +113,9 @@ void test_const_iterator_reverse_access(bit::ef::array const& ef_sequence, std::
         if (*tr != *itr) throw std::runtime_error("[iterator (full reverse pass)] FAIL");
         --tr;
     }
+    // auto tr2 = ef_sequence.cend();
+    // --tr2;
+    // assert(*tr2 == ef_sequence.back());
     std::cerr << "const iterator operator-- OK\n";
 }
 
@@ -131,6 +134,7 @@ void test_const_iterator_random_access(std::mt19937& gen, bit::ef::array const& 
     if (j < i) {auto k = j; j = i; i = k;}
     auto jend = bit::ef::array::const_iterator(ef_sequence, j);
     assert(jend - ef_sequence.cbegin() == j);
+    std::cerr << "trying to query subsequence\n";
     for (auto itr = bit::ef::array::const_iterator(ef_sequence, i); itr != jend; ++itr) {
         if (*itr != cumulative_sequence.at(i)) throw std::runtime_error("[iterator (random position)] FAIL (span check)");
         ++i;
@@ -138,38 +142,11 @@ void test_const_iterator_random_access(std::mt19937& gen, bit::ef::array const& 
     std::cerr << "const iterator starting at random positions OK\n";
 }
 
-void test_lg_find_simple_example()
-{
-    using namespace iterators;
-    std::vector<std::size_t> repetitive = {2,0,0,0,0,0,0,4,0,0,0,0,7,0,0,0,0,0};
-    bit::ef::array rep_ef_seq(cumulative_iterator(repetitive.begin()), cumulative_iterator(repetitive.end()));
-    // std::cerr << "size = " << rep_ef_seq.size() << "\n";
-
-    std::size_t cumulative_query = 6;
-    std::size_t idx;
-    idx = rep_ef_seq.lt_find(cumulative_query);
-    // std::cerr << idx << "\n";
-    assert(idx == 6);
-    idx = rep_ef_seq.gt_find(cumulative_query);
-    // std::cerr << idx << "\n";
-    assert(idx == 12);
-
-    idx = rep_ef_seq.lt_find(cumulative_query, true);
-    // std::cerr << idx << "\n";
-    assert(idx == 0);
-    idx = rep_ef_seq.gt_find(cumulative_query, true);
-    // std::cerr << idx << "\n";
-    assert(idx == repetitive.size() -1);
-
-    std::cerr << "Simple lt and gt check OK\n";
-}
-
 void test_lg_find(std::mt19937& gen, bit::ef::array const& ef_sequence, std::vector<std::size_t> const& cumulative_sequence)
 {
     std::uniform_int_distribution<std::size_t> distrib(0, cumulative_sequence.back());
     for (std::size_t dummy = 0; dummy < 10; ++dummy) { // try 10 different values
         auto x = distrib(gen);
-        // std::cerr << "x = " << x << " (cumulative sum = " << cumulative_sequence.back() << ")\n";
         auto idx_leq = ef_sequence.lt_find(x);
         auto idx_geq = ef_sequence.gt_find(x);
 
@@ -177,11 +154,17 @@ void test_lg_find(std::mt19937& gen, bit::ef::array const& ef_sequence, std::vec
         for (std::size_t i = 0; i < cumulative_sequence.size() and cumulative_sequence.at(i) <= x; ++i) {
             leq_check = i;
         }
-        // std::cerr << "leq check = " << leq_check 
+        // std::cerr << "x = " << x << "\n";
+        // std::cerr << "leq_check = " << leq_check 
         //           << ", cumulative_seq[leq_check] = " << cumulative_sequence.at(leq_check) 
         //           << ", cumulative_seq[leq_check + 1] = " << (leq_check >= cumulative_sequence.size() ? -1 : cumulative_sequence.at(leq_check + 1)) 
+        //           << ", ef[leq_check] = " << ef_sequence.at(leq_check)
         //           << "\n";
-        // std::cerr << "idx (leq) = " << idx_leq << "\n";
+        // std::cerr << "idx (leq) = " << idx_leq 
+        //           << ", cumulative_seq[idx] = " << cumulative_sequence.at(idx_leq)
+        //           << ", cumulative_seq[idx + 1] = " << (idx_leq >= cumulative_sequence.size() ? -1 : cumulative_sequence.at(idx_leq + 1)) 
+        //           << ", ef[idx] = " << ef_sequence.at(idx_leq)
+        //           << "\n";
         assert(leq_check == std::size_t(-1) or cumulative_sequence.at(leq_check) < x);
         if (leq_check != idx_leq) throw std::runtime_error("[leq] FAIL");
 
@@ -199,4 +182,39 @@ void test_lg_find(std::mt19937& gen, bit::ef::array const& ef_sequence, std::vec
         if (geq_check != idx_geq) throw std::runtime_error("[geq] FAIL");
     }
     std::cerr << "lt and gt OK\n";
+}
+
+void test_lg_find_simple_example()
+{
+    using namespace iterators;
+    std::vector<std::size_t> repetitive;
+    bit::ef::array rep_ef_seq;
+    std::size_t idx;
+    std::size_t cumulative_query;
+
+    repetitive = {2,0,0,0,0,0,0,4,0,0,0,0,7,0,0,0,0,0};
+    rep_ef_seq = bit::ef::array(cumulative_iterator(repetitive.begin()), cumulative_iterator(repetitive.end()));
+    cumulative_query = 6;
+    idx = rep_ef_seq.lt_find(cumulative_query);
+    assert(idx == 6);
+    idx = rep_ef_seq.gt_find(cumulative_query);
+    assert(idx == 12);
+    idx = rep_ef_seq.lt_find(cumulative_query, true);
+    assert(idx == 0);
+    idx = rep_ef_seq.gt_find(cumulative_query, true);
+    assert(idx == repetitive.size() -1);
+
+    repetitive = {2,0,2,2}; // u = 6, n = 4, u/n = 1 -> log2(u/n) = 0 -> shift = 0
+    rep_ef_seq = bit::ef::array(cumulative_iterator(repetitive.begin()), cumulative_iterator(repetitive.end()));
+    cumulative_query = 5; // try to find something > n but still < u
+    idx = rep_ef_seq.lt_find(cumulative_query);
+    assert(idx == 2);
+    idx = rep_ef_seq.gt_find(cumulative_query);
+    assert(idx == 3);
+    idx = rep_ef_seq.lt_find(cumulative_query, true);
+    assert(idx == 2);
+    idx = rep_ef_seq.gt_find(cumulative_query, true);
+    assert(idx == 3);
+
+    std::cerr << "Simple lt and gt check OK\n";
 }
