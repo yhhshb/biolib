@@ -204,6 +204,14 @@ void test_lg_find_simple_example()
     idx = rep_ef_seq.gt_find(cumulative_query, true);
     assert(idx == repetitive.size() -1);
 
+    // std::cerr << "[" << std::endl; 
+    // auto m = rep_ef_seq.back();
+    // for (std::size_t i = 0; i < m; ++i) {
+    //     std::cerr << "index of less_than " << i << " = " << rep_ef_seq.lt_find(i) << std::endl;
+    // }
+    // std::cerr << "]" << std::endl;
+    // std::cerr << rep_ef_seq.lt_find(rep_ef_seq.back() + 1) << "\n";
+
     repetitive = {2,0,2,2}; // u = 6, n = 4, u/n = 1 -> log2(u/n) = 0 -> shift = 0
     rep_ef_seq = bit::ef::array(cumulative_iterator(repetitive.begin()), cumulative_iterator(repetitive.end()));
     cumulative_query = 5; // try to find something > n but still < u

@@ -36,7 +36,8 @@ array::lt_find(std::size_t s, bool ignore_duplicates) const // ignore duplicates
     auto hb = s >> lsb.bit_width();
     auto stop = cend();
     auto start = begin();
-    auto itr = const_iterator(*this, hb ? msbrs.select0(hb - 1) - hb - 1 : 0);
+    auto start_idx = hb ? msbrs.select0(hb - 1) - hb - (lsb.bit_width() ? 1 : 0) : 0;
+    auto itr = const_iterator(*this, start_idx);
     while(*itr < s and itr != stop) ++itr; // find block start
     if (itr == stop) itr = const_iterator(*this, size() - 1);
     else --itr;
