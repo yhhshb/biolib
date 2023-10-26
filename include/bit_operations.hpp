@@ -79,7 +79,7 @@ static inline std::size_t lsbll(unsigned long long x)
 template <typename T>
 static inline std::size_t msbll(T x)
 {
-    return ::bit::size(x) - 1 - lsbll(x);  // count leading zeros (clz)
+    return ::bit::size(x) - 1 - __builtin_clz(x);  // count leading zeros (clz)
 }
 
 inline std::optional<std::size_t> lsb(unsigned long long x)
