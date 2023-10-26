@@ -21,7 +21,7 @@ class rle_view
                 using reference         = value_type&;
 
                 rl_iterator(rle_view const& view, Iterator iterator) 
-                    : parent_view(view), itr(iterator), run_length(0)
+                    : parent_view(&view), itr(iterator), run_length(0)
                 {
                     init();
                 }
@@ -43,17 +43,17 @@ class rle_view
                 symbol_type get_symbol() const {return *itr;}
 
             private:
-                rle_view const& parent_view;
+                rle_view const* parent_view;
                 Iterator itr;
                 length_type run_length;
 
                 void init()
                 {
                     run_length = 0;
-                    if (itr != parent_view.itr_stop) {
+                    if (itr != parent_view->itr_stop) {
                         auto cur_val = *itr;
                         decltype(itr) prev;
-                        while (*itr == cur_val and itr != parent_view.itr_stop) {
+                        while (*itr == cur_val and itr != parent_view->itr_stop) {
                             prev = itr++;
                             ++run_length;
                         }
@@ -64,11 +64,11 @@ class rle_view
                 rl_iterator const& advance() 
                 {
                     run_length = 0;
-                    if (itr != parent_view.itr_stop) ++itr;
-                    if (itr != parent_view.itr_stop) {
+                    if (itr != parent_view->itr_stop) ++itr;
+                    if (itr != parent_view->itr_stop) {
                         auto cur_val = *itr;
                         decltype(itr) prev;
-                        while (itr != parent_view.itr_stop and *itr == cur_val) {
+                        while (itr != parent_view->itr_stop and *itr == cur_val) {
                             prev = itr;
                             ++itr;
                             ++run_length;
@@ -81,7 +81,7 @@ class rle_view
 
                 friend bool operator==(rl_iterator const& a, rl_iterator const& b) 
                 {
-                    bool same_view = &a.parent_view == &b.parent_view;
+                    bool same_view = a.parent_view == b.parent_view;
                     bool same_position = a.itr == b.itr;
                     return same_view and same_position;
                 }

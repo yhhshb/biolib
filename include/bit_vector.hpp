@@ -35,14 +35,15 @@ class vector
                 const_iterator operator+(I) const;
             
             private:
-                vector const& parent_vector;
+                vector const* parent_vector;
                 std::size_t idx;
                 UnsignedIntegerType buffer;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
+                    bool same_vector = a.parent_vector == b.parent_vector;
                     bool same_start = a.idx == b.idx;
-                    return (&a.parent_vector == &b.parent_vector) and same_start;
+                    return same_vector and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
@@ -71,7 +72,7 @@ class vector
                 one_position_iterator operator+(I delta_on_the_actual_sequence_of_bits) noexcept;
             
             private:
-                vector const& parent_vector;
+                vector const* parent_vector;
                 std::size_t idx;
                 // TODO add buffer
 
@@ -80,8 +81,9 @@ class vector
 
                 friend bool operator==(one_position_iterator const& a, one_position_iterator const& b) 
                 {
+                    bool same_vector = a.parent_vector == b.parent_vector;
                     bool same_start = a.idx == b.idx;
-                    return (&a.parent_vector == &b.parent_vector) and same_start;
+                    return same_vector and same_start;
                 };
                 friend bool operator!=(one_position_iterator const& a, one_position_iterator const& b) {return not (a == b);};
         };
@@ -457,12 +459,12 @@ vector<UnsignedIntegerType>::load(Loader& visitor)
 
 template <class UnsignedIntegerType>
 vector<UnsignedIntegerType>::const_iterator::const_iterator(vector const& vec, std::size_t ref_idx)
-    : parent_vector(vec), idx(ref_idx)
+    : parent_vector(&vec), idx(ref_idx)
 {
-    if (idx > parent_vector.bsize) throw std::out_of_range("[bit::vector::const_iterator]");
-    if (idx != parent_vector.bsize) {
-        auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
-        buffer = parent_vector._data.at(block_idx);
+    if (idx > parent_vector->bsize) throw std::out_of_range("[bit::vector::const_iterator]");
+    if (idx != parent_vector->bsize) {
+        auto [block_idx, bit_idx] = parent_vector->idx_to_coordinates(idx);
+        buffer = parent_vector->_data.at(block_idx);
         buffer >>= bit_idx;
     }
 }
@@ -471,7 +473,7 @@ template <class UnsignedIntegerType>
 typename vector<UnsignedIntegerType>::const_iterator::value_type
 vector<UnsignedIntegerType>::const_iterator::operator*() const
 {
-    assert(idx < parent_vector.bsize);
+    assert(idx < parent_vector->bsize);
     return buffer & static_cast<UnsignedIntegerType>(1);
 }
 
@@ -479,14 +481,14 @@ template <class UnsignedIntegerType>
 typename vector<UnsignedIntegerType>::const_iterator const&
 vector<UnsignedIntegerType>::const_iterator::operator++() noexcept
 {
-    auto [old_block_idx, old_bit_idx] = parent_vector.idx_to_coordinates(idx);
+    auto [old_block_idx, old_bit_idx] = parent_vector->idx_to_coordinates(idx);
     ++idx;
-    if (idx < parent_vector.size()) {
-        auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx);
+    if (idx < parent_vector->size()) {
+        auto [block_idx, bit_idx] = parent_vector->idx_to_coordinates(idx);
         if (old_block_idx != block_idx) {
             assert(block_idx - old_block_idx == 1);
             assert(bit_idx == 0);
-            buffer = parent_vector._data.at(block_idx); // >> idx; useless, since idx is 0 here 
+            buffer = parent_vector->_data.at(block_idx); // >> idx; useless, since idx is 0 here 
         } else {
             assert(bit_idx - old_bit_idx == 1);
             buffer >>= 1;
@@ -511,10 +513,10 @@ template <typename I>
 typename vector<UnsignedIntegerType>::const_iterator
 vector<UnsignedIntegerType>::const_iterator::operator+(I inc) const
 {
-    auto [block_idx, bit_idx] = parent_vector.idx_to_coordinates(idx + inc);
+    auto [block_idx, bit_idx] = parent_vector->idx_to_coordinates(idx + inc);
     auto toret = *this;
     toret.idx += inc;
-    toret.buffer = toret.parent_vector._data.at(block_idx) >> bit_idx;
+    toret.buffer = toret.parent_vector->_data.at(block_idx) >> bit_idx;
     return toret;
 }
 
@@ -522,9 +524,9 @@ vector<UnsignedIntegerType>::const_iterator::operator+(I inc) const
 
 template <class UnsignedIntegerType>
 vector<UnsignedIntegerType>::one_position_iterator::one_position_iterator(vector const& vec, std::size_t ref_idx)
-    : parent_vector(vec), idx(ref_idx)
+    : parent_vector(&vec), idx(ref_idx)
 {
-    if (idx >= parent_vector.size()) idx = parent_vector.size();
+    if (idx >= parent_vector->size()) idx = parent_vector->size();
     find_next_one();
 }
 
@@ -577,15 +579,15 @@ template <class UnsignedIntegerType>
 void
 vector<UnsignedIntegerType>::one_position_iterator::find_next_one() noexcept
 {
-    while(idx < parent_vector.size() and not parent_vector.at(idx)) ++idx;
+    while(idx < parent_vector->size() and not parent_vector->at(idx)) ++idx;
 }
 
 template <class UnsignedIntegerType>
 void
 vector<UnsignedIntegerType>::one_position_iterator::find_prev_one() noexcept
 {
-    while(idx != 0 and not parent_vector.at(idx)) --idx;
-    if (not parent_vector.at(0)) --idx; // underflow
+    while(idx != 0 and not parent_vector->at(idx)) --idx;
+    if (not parent_vector->at(0)) --idx; // underflow
 }
 
 template <class UnsignedIntegerType>

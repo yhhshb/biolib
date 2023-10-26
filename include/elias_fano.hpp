@@ -40,14 +40,14 @@ class array
             
             private:
                 struct delegate {
-                    array const& parent_view;
+                    array const* parent_view;
                     std::size_t index;
                     std::size_t starting_position;
                     std::size_t buffered_msb;
                     delegate(array const& view, std::size_t idx);
                 };
                 static const value_type reverse_out_of_bound_marker = std::numeric_limits<value_type>::max();
-                array const& parent_view;
+                array const* parent_view;
                 std::size_t index;
                 bv_t::one_position_iterator one_itr;
                 std::size_t buffered_msb;
@@ -55,14 +55,14 @@ class array
                 const_iterator(delegate const& helper);
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
-                    bool same_parent = &a.parent_view == &b.parent_view;
+                    bool same_parent = a.parent_view == b.parent_view;
                     bool same_index = a.index == b.index;
                     return same_parent and same_index;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
                 friend difference_type operator-(const_iterator const& a, const_iterator const& b)
                 {
-                    bool same_parent = &a.parent_view == &b.parent_view;
+                    bool same_parent = a.parent_view == b.parent_view;
                     if (not same_parent) throw std::runtime_error("[Elias-Fano const_iterator] difference between two un-related iterators");
                     return a.index - b.index;
                 }
@@ -110,6 +110,8 @@ class array
         array& operator=(array const&) noexcept = default;
         array& operator=(array&&) noexcept = default;
 
+        std::size_t front() const;
+        std::size_t back() const;
         std::size_t at(std::size_t idx) const; // access prefix-sum
         std::size_t diff_at(std::size_t idx) const; // access difference
         std::size_t lt_find(std::size_t s, bool ignore_duplicates = false) const; // find the index of the largest element < s
