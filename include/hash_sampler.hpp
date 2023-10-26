@@ -26,15 +26,16 @@ class hash_sampler
                 const_iterator operator++(int);
 
             private:
-                hash_sampler const& parent_sampler;
+                hash_sampler const* parent_sampler;
                 Iterator itr_start;
 
                 void find_first_kmer() noexcept;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
+                    bool same_parent = a.parent_sampler == b.parent_sampler;
                     bool same_start = a.itr_start == b.itr_start;
-                    return (a.parent_sampler == b.parent_sampler) and same_start;
+                    return same_parent and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
 
@@ -101,7 +102,7 @@ hash_sampler<Iterator, HashFunctionFamily>::get_sampling_rate() const
 
 template <class Iterator, typename HashFunctionFamily>
 hash_sampler<Iterator, HashFunctionFamily>::const_iterator::const_iterator(hash_sampler const& sampler, Iterator const& start)
-    : parent_sampler(sampler), itr_start(start)
+    : parent_sampler(&sampler), itr_start(start)
 {
     find_first_kmer();
 }
@@ -136,7 +137,7 @@ template <class Iterator, typename HashFunctionFamily>
 void
 hash_sampler<Iterator, HashFunctionFamily>::const_iterator::find_first_kmer() noexcept
 {
-    while (itr_start != parent_sampler.itr_stop and parent_sampler.mhash(*itr_start, parent_sampler.mseed) >= parent_sampler.threshold) ++itr_start;
+    while (itr_start != parent_sampler->itr_stop and parent_sampler->mhash(*itr_start, parent_sampler->mseed) >= parent_sampler->threshold) ++itr_start;
 }
 
 } // namespace sampler

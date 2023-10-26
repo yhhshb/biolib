@@ -31,15 +31,16 @@ class ordered_unique_sampler
                 //     typename std::result_of<HashFunction>::type hash_value;
                 // };
 
-                ordered_unique_sampler const& parent_sampler;
+                ordered_unique_sampler const* parent_sampler;
                 Iterator itr_start;
                 value_type buffer;
                 std::size_t unique_count;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
+                    bool same_parent = a.parent_sampler == b.parent_sampler;
                     bool same_start = a.itr_start == b.itr_start;
-                    return (a.parent_sampler == b.parent_sampler) and same_start;
+                    return same_parent and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
@@ -102,7 +103,7 @@ std::optional<std::size_t> ordered_unique_sampler<Iterator>::size() const
 
 template <class Iterator>
 ordered_unique_sampler<Iterator>::const_iterator::const_iterator(ordered_unique_sampler const& sampler, Iterator const& start) 
-    : parent_sampler(sampler), itr_start(start), unique_count(0)
+    : parent_sampler(&sampler), itr_start(start), unique_count(0)
 {}
 
 template <class Iterator>
@@ -116,14 +117,14 @@ typename ordered_unique_sampler<Iterator>::const_iterator const& ordered_unique_
 {
     auto prev = *itr_start;
     bool inc = false;
-    while(itr_start != parent_sampler.itr_stop and prev == *itr_start) {
+    while(itr_start != parent_sampler->itr_stop and prev == *itr_start) {
         ++itr_start;
         inc = true;
     }
     if (inc) ++unique_count;
-    if (itr_start == parent_sampler.itr_stop) {
-        std::lock_guard<std::mutex> size_update(parent_sampler.size_guard);
-        parent_sampler._size = unique_count;
+    if (itr_start == parent_sampler->itr_stop) {
+        std::lock_guard<std::mutex> size_update(parent_sampler->size_guard);
+        parent_sampler->_size = unique_count;
     }
     return *this;
 }

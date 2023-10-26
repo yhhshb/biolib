@@ -25,15 +25,16 @@ class syncmer_sampler
                 const_iterator operator++(int);
 
             private:
-                syncmer_sampler const& parent_sampler;
+                syncmer_sampler const* parent_sampler;
                 Iterator itr_start;
 
                 void find_first_syncmer() noexcept;
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
+                    bool same_parent = a.parent_sampler == b.parent_sampler;
                     bool same_start = a.itr_start == b.itr_start;
-                    return (&a.parent_sampler == &b.parent_sampler) and same_start;
+                    return same_parent and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
 
@@ -93,7 +94,7 @@ std::pair<uint16_t, uint16_t> syncmer_sampler<Iterator, PropertyExtractor>::get_
 
 template <class Iterator, typename PropertyExtractor>
 syncmer_sampler<Iterator, PropertyExtractor>::const_iterator::const_iterator(syncmer_sampler const& sampler, Iterator const& start)
-    : parent_sampler(sampler), itr_start(start)
+    : parent_sampler(&sampler), itr_start(start)
 {
     find_first_syncmer();
 }
@@ -129,9 +130,9 @@ void
 syncmer_sampler<Iterator, PropertyExtractor>::const_iterator::find_first_syncmer() noexcept
 {
     std::size_t pos;
-    while (itr_start != parent_sampler.itr_stop and 
-           ((pos = parent_sampler.extor(*itr_start)) != parent_sampler.soffset and
-             pos                                     != parent_sampler.eoffset)
+    while (itr_start != parent_sampler->itr_stop and 
+           ((pos = parent_sampler->extor(*itr_start)) != parent_sampler->soffset and
+             pos                                      != parent_sampler->eoffset)
         ) ++itr_start;
 }
 

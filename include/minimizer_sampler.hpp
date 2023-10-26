@@ -33,7 +33,7 @@ class minimizer_sampler
                     typename HashFunctionFamily::hash_type hash_value;
                 };
 
-                minimizer_sampler const& parent_sampler;
+                minimizer_sampler const* parent_sampler;
                 Iterator itr_start;
                 std::vector<mm_pair> window;
                 std::size_t widx, minpos;
@@ -43,8 +43,9 @@ class minimizer_sampler
 
                 friend bool operator==(const_iterator const& a, const_iterator const& b) 
                 {
+                    bool same_parent = a.parent_sampler == b.parent_sampler
                     bool same_start = a.itr_start == b.itr_start;
-                    return (a.parent_sampler == b.parent_sampler) and same_start;
+                    return same_parent and same_start;
                 };
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
@@ -95,7 +96,7 @@ uint16_t minimizer_sampler<Iterator, HashFunctionFamily>::get_w() const
 
 template <class Iterator, typename HashFunctionFamily>
 minimizer_sampler<Iterator, HashFunctionFamily>::const_iterator::const_iterator(minimizer_sampler const& sampler, Iterator const& start) 
-    : parent_sampler(sampler), itr_start(start), widx(0), minpos(0)
+    : parent_sampler(&sampler), itr_start(start), widx(0), minpos(0)
 {
     init();
 }
@@ -115,10 +116,10 @@ typename minimizer_sampler<Iterator, HashFunctionFamily>::const_iterator const& 
     } else {
         bool outside = (widx == minpos);
         window[widx].mer = item; 
-        window[widx].hash_value = parent_sampler.mhash(item, parent_sampler.mseed);
+        window[widx].hash_value = parent_sampler->mhash(item, parent_sampler->mseed);
         if (outside) find_new_min();
         else if (window[minpos].hash_value > window[widx].hash_value) minpos = widx;
-        widx = (widx + 1) % parent_sampler.w;
+        widx = (widx + 1) % parent_sampler->w;
     }
     return *this;
 }
@@ -134,7 +135,7 @@ typename minimizer_sampler<Iterator, HashFunctionFamily>::const_iterator minimiz
 template <class Iterator, typename HashFunctionFamily>
 void minimizer_sampler<Iterator, HashFunctionFamily>::const_iterator::init()
 {
-    window.resize(parent_sampler.w);
+    window.resize(parent_sampler->w);
     reset_window();
 }
 
@@ -142,13 +143,13 @@ template <class Iterator, typename HashFunctionFamily>
 void minimizer_sampler<Iterator, HashFunctionFamily>::const_iterator::reset_window()
 {
     minpos = 0;
-    for (std::size_t widx = 0; itr_start != parent_sampler.itr_stop and widx < parent_sampler.w; ++widx) {
+    for (std::size_t widx = 0; itr_start != parent_sampler->itr_stop and widx < parent_sampler->w; ++widx) {
         auto item = *itr_start++;
         if (not item) {
             widx = 0;
             minpos = 0;
         } else {
-            window[widx] = {*item, parent_sampler.mhash(*item, parent_sampler.mseed)};
+            window[widx] = {*item, parent_sampler->mhash(*item, parent_sampler->mseed)};
             if (window[widx].hash_value > window[minpos].hash_value) minpos = widx;
         }
     }
