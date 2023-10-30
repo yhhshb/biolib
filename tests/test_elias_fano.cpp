@@ -224,5 +224,21 @@ void test_lg_find_simple_example()
     idx = rep_ef_seq.gt_find(cumulative_query, true);
     assert(idx == 3);
 
+    repetitive = {5, 11, 7, 10, 8};
+    rep_ef_seq = bit::ef::array(cumulative_iterator(repetitive.begin()), cumulative_iterator(repetitive.end()));
+    // for (auto v : rep_ef_seq) std::cerr << v << ", ";
+    // std::cerr << "\n";
+    cumulative_query = 16 + 1; // find index of 16 (it should be 1). We add 1 because lt is strictly inferior
+    idx = rep_ef_seq.lt_find(cumulative_query); // look-up 17 and add 1 to the result
+    // std::cerr << "idx = " << idx << "\n";
+    assert(idx == 1);
+    idx = rep_ef_seq.gt_find(cumulative_query);
+    assert(idx == 2);
+    idx = rep_ef_seq.lt_find(cumulative_query, true);
+    // std::cerr << "idx = " << idx << "\n";
+    assert(idx == 1);
+    idx = rep_ef_seq.gt_find(cumulative_query, true);
+    assert(idx == 2);
+
     std::cerr << "Simple lt and gt check OK\n";
 }
