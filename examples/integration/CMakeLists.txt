@@ -5,9 +5,8 @@ include(FetchContent)
 
 FetchContent_Declare(
   biolib-lib
-  SOURCE_DIR /home/tlemane/work/dev/yoshb/biolib
   GIT_REPOSITORY https://github.com/yhhshb/biolib
-  GIT_TAG integration
+  GIT_TAG main
 )
 
 FetchContent_MakeAvailable(biolib-lib)
