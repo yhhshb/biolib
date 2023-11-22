@@ -17,10 +17,14 @@ target_link_libraries(biolib PRIVATE
 )
 
 target_include_directories(biolib PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/bundled>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/bundled>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+if (NOT UNNAMED_STANDALONE)
+  return()
+endif()
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
