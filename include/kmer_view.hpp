@@ -12,6 +12,9 @@
 
 namespace wrapper {
 
+#define CLASS_HEADER template <typename KmerType, class Iterator>
+#define METHOD_HEADER kmer_view<KmerType, Iterator>
+
 template <typename KmerType>
 struct kmer_context_t {
     std::optional<KmerType> value;
@@ -19,7 +22,7 @@ struct kmer_context_t {
     std::size_t id; // unique id for current view
 };
 
-template <typename KmerType, class Iterator>
+CLASS_HEADER
 class kmer_view
 {
     public:
@@ -56,8 +59,6 @@ class kmer_view
         };
 
         kmer_view(Iterator start, Iterator stop, uint8_t k, bool canonical = false);
-        // kmer_view(char const* contig, std::size_t contig_len, uint8_t k, bool canonical = false);
-        // kmer_view(std::string const& contig, uint8_t k, bool canonical = false) noexcept;
         const_iterator cbegin() const;
         const_iterator cend() const noexcept;
         const_iterator begin() const;
@@ -106,60 +107,60 @@ kmer_view<KmerType, char_iterator> kmer_view_from_cstr(char const* s, std::size_
 //     : seq(contig.c_str()), slen(contig.length()), klen(k), canon(canonical)
 // {}
 
-template <typename KmerType, class Iterator>
-kmer_view<KmerType, Iterator>::kmer_view(Iterator start, Iterator stop, uint8_t k, bool canonical)
+CLASS_HEADER
+METHOD_HEADER::kmer_view(Iterator start, Iterator stop, uint8_t k, bool canonical)
     : itr_start(start), itr_stop(stop), klen(k), canon(canonical)
 {
     static_assert(std::is_same<typename Iterator::value_type, char>::value);
     // if (not contig) throw std::runtime_error("[k-mer view] null contig");
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator
-kmer_view<KmerType, Iterator>::cbegin() const
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator
+METHOD_HEADER::cbegin() const
 {
     return const_iterator(this);
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator
-kmer_view<KmerType, Iterator>::cend() const noexcept
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator
+METHOD_HEADER::cend() const noexcept
 {
     return const_iterator(this, 0);
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator
-kmer_view<KmerType, Iterator>::begin() const
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator
+METHOD_HEADER::begin() const
 {
     return cbegin();
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator
-kmer_view<KmerType, Iterator>::end() const noexcept
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator
+METHOD_HEADER::end() const noexcept
 {
     return cend();
 }
 
-template <typename KmerType, class Iterator>
+CLASS_HEADER
 uint8_t
-kmer_view<KmerType, Iterator>::get_k() const noexcept
+METHOD_HEADER::get_k() const noexcept
 {
     return klen;
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 
-template <typename KmerType, class Iterator>
-kmer_view<KmerType, Iterator>::const_iterator::const_iterator(kmer_view const* view, [[maybe_unused]] int dummy_end) noexcept
+CLASS_HEADER
+METHOD_HEADER::const_iterator::const_iterator(kmer_view const* view, [[maybe_unused]] int dummy_end) noexcept
     : parent_view(view), itr(parent_view->itr_stop), strand(0), bases_since_last_break(0), position(0), kmer_count(0)
 {
     if (parent_view->klen) shift = 2 * (parent_view->klen - 1);
 }
 
-template <typename KmerType, class Iterator>
-kmer_view<KmerType, Iterator>::const_iterator::const_iterator(kmer_view const* view) noexcept
+CLASS_HEADER
+METHOD_HEADER::const_iterator::const_iterator(kmer_view const* view) noexcept
     : parent_view(view), itr(parent_view->itr_start), strand(0), bases_since_last_break(0), position(0), kmer_count(0)
 {
     if (2 * parent_view->klen != sizeof(mask) * 8) mask = (KmerType(1) << (2 * parent_view->klen)) - 1;
@@ -168,18 +169,18 @@ kmer_view<KmerType, Iterator>::const_iterator::const_iterator(kmer_view const* v
     find_first_good_kmer();
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator::value_type
-kmer_view<KmerType, Iterator>::const_iterator::operator*() const noexcept
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator::value_type
+METHOD_HEADER::const_iterator::operator*() const noexcept
 {
     assert(position >= parent_view->klen);
     if (bases_since_last_break == 0) return value_type{std::nullopt, position - parent_view->klen, kmer_count};
     return value_type{kmer_buffer[strand], position - parent_view->klen, kmer_count};
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator const&
-kmer_view<KmerType, Iterator>::const_iterator::operator++()
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator const&
+METHOD_HEADER::const_iterator::operator++()
 {
     assert(itr != parent_view->itr_stop);
     ++kmer_count; // ids are for valid k-mer only
@@ -200,18 +201,18 @@ kmer_view<KmerType, Iterator>::const_iterator::operator++()
     return *this;
 }
 
-template <typename KmerType, class Iterator>
-typename kmer_view<KmerType, Iterator>::const_iterator
-kmer_view<KmerType, Iterator>::const_iterator::operator++(int)
+CLASS_HEADER
+typename METHOD_HEADER::const_iterator
+METHOD_HEADER::const_iterator::operator++(int)
 {
     auto res = *this;
     operator++();
     return res;
 }
 
-template <typename KmerType, class Iterator>
+CLASS_HEADER
 void
-kmer_view<KmerType, Iterator>::const_iterator::find_first_good_kmer()
+METHOD_HEADER::const_iterator::find_first_good_kmer()
 {
     assert(itr != parent_view->itr_stop);
     while(itr != parent_view->itr_stop and bases_since_last_break < parent_view->klen) {
@@ -232,12 +233,15 @@ kmer_view<KmerType, Iterator>::const_iterator::find_first_good_kmer()
     }
 }
 
-template <typename KmerType, class Iterator>
+CLASS_HEADER
 KmerType
-kmer_view<KmerType, Iterator>::const_iterator::get_mask() const noexcept
+METHOD_HEADER::const_iterator::get_mask() const noexcept
 {
     return mask;
 }
+
+#undef CLASS_HEADER
+#undef METHOD_HEADER
 
 } // namespace wrapper
 

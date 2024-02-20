@@ -339,5 +339,8 @@ METHOD_HEADER::load(Loader& visitor)
     return r;
 }
 
+#undef CLASS_HEADER
+#undef METHOD_HEADER
+
 } // namespace rs
 } // namespace bit

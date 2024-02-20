@@ -19,6 +19,7 @@ endmacro()
 add_test_suite(emv test_external_memory_vector.cpp)
 add_test_suite(ous test_ordered_unique_sampler.cpp)
 add_test_suite(kv test_kmer_view.cpp)
+add_test_suite(mmv test_minimizer_view.cpp)
 add_test_suite(j test_jaccard.cpp)
 add_test_suite(rsg test_random_sequence_generation.cpp)
 

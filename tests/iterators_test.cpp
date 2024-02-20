@@ -1,7 +1,9 @@
+#include <numeric>
 #include <vector>
 #include <iostream>
 #include <cassert>
 #include "../include/member_iterator.hpp"
+#include "../include/size_iterator.hpp"
 
 struct dummy_t {
     int a;
@@ -37,6 +39,13 @@ int main()
     }
     std::cerr << "\n";
     assert(*(iterators::member_iterator(v.begin(), access_b) + 3) == 3);
+
+    std::vector<std::size_t> sv(10);
+    std::iota(sv.begin(), sv.end(), 0);
+    for (auto itr = iterators::size_iterator(sv.begin(), 0); itr != iterators::size_iterator(sv.begin(), sv.size()); ++itr) {
+        std::cerr << *itr << " ";
+    }
+    std::cerr << "\n";
     std::cerr << "Everything is OK\n";
     return 0;
 }
