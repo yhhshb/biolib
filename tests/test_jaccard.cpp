@@ -98,8 +98,8 @@ int main(int argc, char* argv[])
     auto first_ok = [&unique_kmers_first, &itr_first]() {
         return itr_first != unique_kmers_first.cend();
     };
-    auto second_ok = [&unique_kmers_first, &itr_second]() {
-        return itr_second != unique_kmers_first.cend();
+    auto second_ok = [&unique_kmers_second, &itr_second]() {
+        return itr_second != unique_kmers_second.cend();
     };
     std::size_t unione, intersection;
     unione = intersection = 0;
