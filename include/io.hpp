@@ -1,10 +1,11 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include <fstream>
 #include <string>
 #include <vector>
-#include <string>
-#include <fstream>
+#include <utility> // std::pair
+#include <tuple> // TODO with variadic templates
 
 namespace io {
 
@@ -13,12 +14,55 @@ namespace io {
  * Supported types:
  * - all simple C types (NO ARRAYS)
  * - std::vector
+ * - std::string
+ * - std::pair
  * 
  * Add specializations for other types
  */
 
 template <typename T>
-static std::size_t basic_load(std::istream& istrm, T& val)
+[[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, T& val)
+{
+    static_assert(std::is_fundamental<T>::value);
+    if constexpr (std::is_array<T>::value) throw std::domain_error("[Function load] C arrays are not supported");
+    std::memcpy(reinterpret_cast<char*>(&val), istrm, sizeof(T));
+    return sizeof(T);
+}
+
+template <typename T, typename Allocator>
+[[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::vector<T, Allocator>& vec)
+{
+    auto start = istrm;
+    std::size_t n;
+    istrm += basic_parse(istrm, n);
+    vec.resize(n);
+    for (auto& v : vec) istrm += basic_parse(istrm, v);
+    return istrm - start;
+}
+
+[[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::string& s)
+{
+    auto start = istrm;
+    std::size_t n;
+    istrm += basic_parse(istrm, n);
+    s.resize(n);
+    for (auto& c : s) istrm += basic_parse(istrm, c);
+    return istrm - start;
+}
+
+template <typename T1, typename T2>
+[[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::pair<T1, T2>& p)
+{
+    auto start = istrm;
+    istrm += basic_parse(istrm, p.first);
+    istrm += basic_parse(istrm, p.second);
+    return istrm - start;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+
+template <typename T>
+[[maybe_unused]] static std::size_t basic_load(std::istream& istrm, T& val)
 {
     static_assert(std::is_fundamental<T>::value);
     if constexpr (std::is_array<T>::value) throw std::domain_error("[Function load] C arrays are not supported");
@@ -27,7 +71,7 @@ static std::size_t basic_load(std::istream& istrm, T& val)
 }
 
 template <typename T, typename Allocator>
-static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& vec)
+[[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& vec)
 {
     std::size_t n;
     basic_load(istrm, n);
@@ -47,10 +91,18 @@ static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& ve
     return bytes_read;
 }
 
+template <typename T1, typename T2>
+[[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::pair<T1, T2>& p)
+{
+    std::size_t bytes_read = basic_load(istrm, p.first);
+    bytes_read += basic_load(istrm, p.second);
+    return bytes_read;
+}
+
 //-----------------------------------------------------------------------------------------------------------------------
 
 template <typename T>
-static std::size_t basic_store(T const& val, std::ostream& ostrm)
+[[maybe_unused]] static std::size_t basic_store(T const& val, std::ostream& ostrm)
 {
     static_assert(std::is_fundamental<T>::value);
     if constexpr (std::is_array<T>::value) throw std::domain_error("[Function store] C arrays are not supported");
@@ -59,7 +111,7 @@ static std::size_t basic_store(T const& val, std::ostream& ostrm)
 }
 
 template <typename T, typename Allocator>
-static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostream& ostrm)
+[[maybe_unused]] static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostream& ostrm)
 {
     std::size_t n = vec.size();
     std::size_t bytes_written = basic_store(n, ostrm);
@@ -72,6 +124,14 @@ static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostrea
     std::size_t n = s.size();
     std::size_t bytes_written = basic_store(n, ostrm);
     for (auto const& c : s) bytes_written += basic_store(c, ostrm);
+    return bytes_written;
+}
+
+template <typename T1, typename T2>
+[[maybe_unused]] static std::size_t basic_store(std::pair<T1, T2> const& p, std::ostream& ostrm)
+{
+    std::size_t bytes_written = basic_store(p.first, ostrm);
+    bytes_written += basic_store(p.second, ostrm);
     return bytes_written;
 }
 

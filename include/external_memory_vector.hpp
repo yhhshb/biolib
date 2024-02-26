@@ -9,9 +9,8 @@
 
 #include <functional>
 #include <vector>
-#include <string>
 #include <sstream>
-#include <fstream>
+#include "io.hpp"
 #include "memory_mapped_file.hpp"
 
 namespace emem {
@@ -48,21 +47,45 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
                 bool operator!=(const_iterator const& other) const;
 
             private:
-                class mm_loader_iterator 
+                class mm_parser
                 {
                     public:
-                        mm_loader_iterator(uint8_t const* begin, uint8_t const* end) : m_begin(begin), m_end(end) {}
-                        void operator++() { m_begin += sizeof(T); }
-                        T const& operator*() const { return *reinterpret_cast<T const*>(m_begin); }
-                        bool has_next() const { return m_begin != m_end; }
+                        mm_parser(uint8_t const* begin, uint8_t const* end) 
+                            : m_begin(begin)
+                            , m_end(end)
+                            , read(0)
+                        {
+                            read = io::basic_parse(m_begin, buffer);
+                        }
+
+                        void advance() 
+                        { 
+                            // m_begin += sizeof(T);
+                            m_begin += read;
+                            read = 0;
+                            if (has_next()) read = io::basic_parse(m_begin, buffer);
+                        }
+
+                        T const& parse() const
+                        { 
+                            // return *reinterpret_cast<T const*>(m_begin);
+                            return buffer;
+                        }
+
+                        bool has_next() const 
+                        { 
+                            return m_begin != m_end;
+                        }
 
                     private:
                         uint8_t const* m_begin;
                         uint8_t const* m_end;
+                        T buffer;
+                        std::size_t read;
                 };
 
                 external_memory_vector<T, sorted> const* v;
-                std::vector<mm_loader_iterator> m_iterators;
+                std::vector<mm_parser> m_parsers;
                 std::vector<uint32_t> m_idx_heap;
                 std::vector<memory::map::file_source<uint8_t>> m_mm_files;
                 std::function<bool(uint32_t, uint32_t)> heap_idx_comparator;
@@ -205,7 +228,8 @@ external_memory_vector<T, sorted>::sort_and_flush()
     if constexpr (sorted) std::sort(m_buffer.begin(), m_buffer.end(), sorted_base<T>::m_sorter);
     m_tmp_files.push_back(get_tmp_output_filename(m_tmp_files.size()));
     std::ofstream out(m_tmp_files.back().c_str(), std::ofstream::binary);
-    out.write(reinterpret_cast<char const*>(m_buffer.data()), m_buffer.size() * sizeof(T));
+    // out.write(reinterpret_cast<char const*>(m_buffer.data()), m_buffer.size() * sizeof(T)); // old C-like version unable to deal with VL structures
+    for (auto& elem : m_buffer) io::basic_store(elem, out); // use custom overloads (see io.hpp for list of supported types)
     m_buffer.clear();
 }
 
@@ -223,16 +247,15 @@ external_memory_vector<T, sorted>::get_tmp_output_filename(uint64_t id) const
 template <typename T, bool sorted>
 external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memory_vector<T, sorted> const* vec)
     : v(vec)
-    // , m_mm_files(v->m_tmp_files.size())
-    , heap_idx_comparator([this](uint32_t i, uint32_t j) { return (*m_iterators[i] > *m_iterators[j]); }) 
+    , heap_idx_comparator([this](uint32_t i, uint32_t j) { return (m_parsers[i].parse() > m_parsers[j].parse()); }) 
 {
-    m_iterators.reserve(v->m_tmp_files.size());
+    m_parsers.reserve(v->m_tmp_files.size());
     m_idx_heap.reserve(v->m_tmp_files.size());
     m_mm_files.reserve(v->m_tmp_files.size());
     /* create the input iterators and make the heap */
     for (uint64_t i = 0; i != v->m_tmp_files.size(); ++i) {
         m_mm_files.emplace_back(v->m_tmp_files.at(i), memory::map::advice::sequential);
-        m_iterators.emplace_back(m_mm_files[i].data(), m_mm_files[i].data() + m_mm_files[i].size());
+        m_parsers.emplace_back(m_mm_files[i].data(), m_mm_files[i].data() + m_mm_files[i].size());
         m_idx_heap.push_back(i);
     }
     if constexpr (sorted) std::make_heap(m_idx_heap.begin(), m_idx_heap.end(), heap_idx_comparator);
@@ -249,8 +272,8 @@ template <typename T, bool sorted>
 T const& 
 external_memory_vector<T, sorted>::const_iterator::operator*() const 
 {
-    if constexpr (sorted) return *m_iterators[m_idx_heap.front()];
-    else return *m_iterators[m_idx_heap.back()];
+    if constexpr (sorted) return m_parsers[m_idx_heap.front()].parse();
+    else return m_parsers[m_idx_heap.back()].parse();
 }
 
 template <typename T, bool sorted>
@@ -281,8 +304,8 @@ typename std::enable_if<s, void>::type
 external_memory_vector<T, sorted>::const_iterator::advance_heap_head() 
 {
     uint32_t idx = m_idx_heap.front();
-    ++m_iterators[idx];
-    if (m_iterators[idx].has_next()) {  // percolate down the head
+    m_parsers[idx].advance();
+    if (m_parsers[idx].has_next()) {  // percolate down the head
         uint64_t pos = 0;
         uint64_t size = m_idx_heap.size();
         while (2 * pos + 1 < size) {
@@ -304,8 +327,8 @@ typename std::enable_if<!s, void>::type
 external_memory_vector<T, sorted>::const_iterator::advance_heap_head() 
 {
     uint32_t idx = m_idx_heap.back();  // we reversed the array when !sorted
-    ++m_iterators[idx];
-    if (m_iterators[idx].has_next()) {}  // do nothing since next time the index will be still valid
+    m_parsers[idx].advance();
+    if (m_parsers[idx].has_next()) {}  // do nothing since next time the index will be still valid
     else m_idx_heap.pop_back();
 }
 
