@@ -19,6 +19,10 @@ libra::get_byte_size() const noexcept
     return acc;
 }
 
-
+void
+libra::reset() noexcept
+{
+    acc = 0;
+}
 
 } // namespace logging_tools

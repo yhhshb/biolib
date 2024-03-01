@@ -45,6 +45,7 @@ class libra
         void visit(std::string const& s) noexcept;
 
         std::size_t get_byte_size() const noexcept;
+        void reset() noexcept;
 
     private:
         std::size_t acc;

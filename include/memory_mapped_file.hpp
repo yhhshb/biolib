@@ -95,7 +95,8 @@ class file_source : public file<T const>
 };
 
 template <typename T>
-class file_sink : public file<T> {
+class file_sink : public file<T> 
+{
     public:
         typedef file<T> base;
 
