@@ -1,6 +1,7 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include <cstring> // for memcpy
 #include <fstream>
 #include <string>
 #include <vector>
