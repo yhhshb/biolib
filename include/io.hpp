@@ -1,12 +1,13 @@
 #ifndef IO_HPP
 #define IO_HPP
 
-#include <cstring> // for memcpy
 #include <fstream>
 #include <string>
 #include <vector>
 #include <utility> // std::pair
 #include <tuple> // TODO with variadic templates
+
+#include <iostream>
 
 namespace io {
 
@@ -21,6 +22,8 @@ namespace io {
  * Add specializations for other types
  */
 
+[[maybe_unused]] std::size_t basic_parse(uint8_t const* istrm, std::string& s);
+
 template <typename T>
 [[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, T& val)
 {
@@ -33,6 +36,7 @@ template <typename T>
 template <typename T, typename Allocator>
 [[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::vector<T, Allocator>& vec)
 {
+    // static_assert(std::is_fundamental<T>::value);
     auto start = istrm;
     std::size_t n;
     istrm += basic_parse(istrm, n);
@@ -41,19 +45,10 @@ template <typename T, typename Allocator>
     return istrm - start;
 }
 
-[[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::string& s)
-{
-    auto start = istrm;
-    std::size_t n;
-    istrm += basic_parse(istrm, n);
-    s.resize(n);
-    for (auto& c : s) istrm += basic_parse(istrm, c);
-    return istrm - start;
-}
-
 template <typename T1, typename T2>
 [[maybe_unused]] static std::size_t basic_parse(uint8_t const* istrm, std::pair<T1, T2>& p)
 {
+    // static_assert(std::is_fundamental<T1>::value and std::is_fundamental<T2>::value);
     auto start = istrm;
     istrm += basic_parse(istrm, p.first);
     istrm += basic_parse(istrm, p.second);
@@ -61,6 +56,8 @@ template <typename T1, typename T2>
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
+
+[[maybe_unused]] std::size_t basic_load(std::istream& istrm, std::string& s);
 
 template <typename T>
 [[maybe_unused]] static std::size_t basic_load(std::istream& istrm, T& val)
@@ -74,6 +71,7 @@ template <typename T>
 template <typename T, typename Allocator>
 [[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::vector<T, Allocator>& vec)
 {
+    // static_assert(std::is_fundamental<T>::value);
     std::size_t n;
     basic_load(istrm, n);
     vec.resize(n);
@@ -82,25 +80,18 @@ template <typename T, typename Allocator>
     return bytes_read;
 }
 
-[[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::string& s)
-{
-    std::size_t n;
-    basic_load(istrm, n);
-    s.resize(n);
-    std::size_t bytes_read = sizeof(n);
-    for (auto& c : s) bytes_read += basic_load(istrm, c);
-    return bytes_read;
-}
-
 template <typename T1, typename T2>
 [[maybe_unused]] static std::size_t basic_load(std::istream& istrm, std::pair<T1, T2>& p)
 {
+    // static_assert(std::is_fundamental<T1>::value and std::is_fundamental<T2>::value);
     std::size_t bytes_read = basic_load(istrm, p.first);
     bytes_read += basic_load(istrm, p.second);
     return bytes_read;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
+
+[[maybe_unused]] std::size_t basic_store(std::string const& s, std::ostream& ostrm);
 
 template <typename T>
 [[maybe_unused]] static std::size_t basic_store(T const& val, std::ostream& ostrm)
@@ -114,23 +105,17 @@ template <typename T>
 template <typename T, typename Allocator>
 [[maybe_unused]] static std::size_t basic_store(std::vector<T, Allocator> const& vec, std::ostream& ostrm)
 {
+    // static_assert(std::is_fundamental<T>::value);
     std::size_t n = vec.size();
     std::size_t bytes_written = basic_store(n, ostrm);
     for (auto const& v : vec) bytes_written += basic_store(v, ostrm);
     return bytes_written;
 }
 
-[[maybe_unused]] static std::size_t basic_store(std::string const& s, std::ostream& ostrm)
-{
-    std::size_t n = s.size();
-    std::size_t bytes_written = basic_store(n, ostrm);
-    for (auto const& c : s) bytes_written += basic_store(c, ostrm);
-    return bytes_written;
-}
-
 template <typename T1, typename T2>
 [[maybe_unused]] static std::size_t basic_store(std::pair<T1, T2> const& p, std::ostream& ostrm)
 {
+    // static_assert(std::is_fundamental<T1>::value and std::is_fundamental<T2>::value);
     std::size_t bytes_written = basic_store(p.first, ostrm);
     bytes_written += basic_store(p.second, ostrm);
     return bytes_written;
@@ -143,11 +128,14 @@ class loader
     public:
         loader(std::istream& input_stream);
 
-        template <typename T>
+        template <class T>
         void visit(T& var);
 
-        template <typename T, class Allocator>
+        template <class T, class Allocator>
         void visit(std::vector<T, Allocator>& vec);
+
+        template <class T1, class T2>
+        void visit(std::pair<T1, T2>& p);
 
         void visit(std::string& s);
 
@@ -165,13 +153,11 @@ class loader
  * The method is intended to be used by classes implementing a visit method.
  * The amount of bytes read is also saved, extending the functionality of the load() functions. 
  */
-template <typename T>
+template <class T>
 void loader::visit(T& var)
 {
     if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
         basic_load(istrm, var);
-        // num_bytes_pods += nr;
     } else {
         var.visit(*this); // supposing the to-be saved object has a visit() method
     }
@@ -181,19 +167,21 @@ void loader::visit(T& var)
  * This specialization for std::vector restricts the more general load() to vectors of basic C types.
  * This is to store their size separate from other types.
  */
-template <typename T, typename Allocator>
+template <class T, typename Allocator>
 void loader::visit(std::vector<T, Allocator>& vec)
 {
-    // if constexpr (std::is_fundamental<T>::value) {
-    //     // auto nr = 
-    //     basic_load(istrm, vec);
-    //     // num_bytes_vecs_of_pods += nr;
-    // } else {
-        std::size_t n;
-        visit(n);
-        vec.resize(n);
-        for (auto& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
-    // }
+    // DO NOT replace with basic_load
+    std::size_t n;
+    basic_load(istrm, n);
+    vec.resize(n);
+    for (auto& v : vec) visit(v);
+}
+
+template <class T1, class T2>
+void loader::visit(std::pair<T1, T2>& p)
+{
+    visit(p.first);
+    visit(p.second);
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -208,6 +196,9 @@ class saver
 
         template <typename T, class Allocator>
         void visit(std::vector<T, Allocator> const& vec);
+
+        template <class T1, class T2>
+        void visit(std::pair<T1, T2> const& p);
 
         void visit(std::string const& s);
 
@@ -235,6 +226,9 @@ class mut_saver : public saver
         template <typename T, class Allocator>
         void visit(std::vector<T, Allocator>& vec);
 
+        template <class T1, class T2>
+        void visit(std::pair<T1, T2>& p);
+
         void visit(std::string& s);
 };
 
@@ -242,9 +236,7 @@ template <typename T>
 void saver::visit(T const& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
         basic_store(var, ostrm);
-        // num_bytes_pods += nr;
     } else {
         var.visit(*this);
     }
@@ -253,24 +245,24 @@ void saver::visit(T const& var)
 template <typename T, typename Allocator>
 void saver::visit(std::vector<T, Allocator> const& vec) 
 {
-    // if constexpr (std::is_fundamental<T>::value) {
-    //     // auto nr = 
-    //     basic_store(vec, ostrm);
-    //     // num_bytes_vecs_of_pods += nr;
-    // } else {
-        size_t n = vec.size();
-        visit(n);
-        for (auto const& v : vec) visit(v);
-    // }
+    // DO NOT replace with basic_store
+    std::size_t n = vec.size();
+    basic_store(n, ostrm);
+    for (auto& v : vec) visit(v);
+}
+
+template <class T1, class T2>
+void saver::visit(std::pair<T1, T2> const& p)
+{
+    visit(p.first);
+    visit(p.second);
 }
 
 template <typename T>
 void mut_saver::visit(T& var) 
 {
     if constexpr (std::is_fundamental<T>::value) {
-        // auto nr = 
         basic_store(var, ostrm);
-        // num_bytes_vecs_of_pods += nr;
     } else {
         var.visit(*this);
     }
@@ -279,15 +271,17 @@ void mut_saver::visit(T& var)
 template <typename T, typename Allocator>
 void mut_saver::visit(std::vector<T, Allocator>& vec) 
 {
-    // if constexpr (std::is_fundamental<T>::value) {
-    //     // auto nr = 
-    //     basic_store(vec, ostrm);
-    //     // num_bytes_vecs_of_pods += nr;
-    // } else {
-        size_t n = vec.size();
-        visit(n);
-        for (auto& v : vec) visit(v);
-    // }
+    // DO NOT replace with basic_store
+    std::size_t n = vec.size();
+    basic_store(n, ostrm);
+    for (auto& v : vec) visit(v);
+}
+
+template <class T1, class T2>
+void mut_saver::visit(std::pair<T1, T2>& p)
+{
+    visit(p.first);
+    visit(p.second);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
