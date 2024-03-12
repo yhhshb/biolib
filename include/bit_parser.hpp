@@ -25,7 +25,7 @@ class parser
         UnsignedIntegerType get_next_block() const;
 
         uint64_t const* _data;
-        std::size_t _size;
+        std::size_t block_size;
         std::size_t idx;
         UnsignedIntegerType buffer;
         std::size_t available; // buffer handling
@@ -33,12 +33,12 @@ class parser
 
 template <typename UnsignedIntegerType>
 parser<UnsignedIntegerType>::parser() 
-    : _data(nullptr), _size(0), idx(0), buffer(0), available(0) 
+    : _data(nullptr), block_size(0), idx(0), buffer(0), available(0) 
 {}
 
 template <typename UnsignedIntegerType>
 parser<UnsignedIntegerType>::parser(UnsignedIntegerType const * const data, std::size_t size, std::size_t starting_bit_position)
-    : _data(data), _size(size)
+    : _data(data), block_size(size)
 {
     reset(starting_bit_position);
 }
@@ -49,7 +49,7 @@ UnsignedIntegerType
 parser<UnsignedIntegerType>::parse_fixed(std::size_t l)
 {
     UnsignedIntegerType val = 0;
-    if (l <= ::bit::size(val)) throw std::length_error("[bit::parser] requested integer does not fit in the return type");
+    if (l >= ::bit::size(val)) throw std::length_error("[bit::parser] requested integer does not fit in the return type");
     if (available < l) fill_buf();
     
     if (l != ::bit::size<UnsignedIntegerType>()) {
@@ -108,7 +108,7 @@ template <typename UnsignedIntegerType>
 void 
 parser<UnsignedIntegerType>::reset(std::size_t nidx)
 {
-    if (nidx >= ::bit::size<UnsignedIntegerType>() * _size) throw std::out_of_range("[bit::parser] index out of range");
+    if (nidx >= ::bit::size<UnsignedIntegerType>() * block_size) throw std::out_of_range("[bit::parser] index out of range");
     idx = nidx;
     buffer = 0;
     available = 0;
@@ -118,7 +118,7 @@ template <typename UnsignedIntegerType>
 void 
 parser<UnsignedIntegerType>::reset_and_clear_low_bits(std::size_t nidx)
 {
-    if (nidx >= ::bit::size<UnsignedIntegerType>() * _size) throw std::out_of_range("[bit::parser] index out of range");
+    if (nidx >= ::bit::size<UnsignedIntegerType>() * block_size) throw std::out_of_range("[bit::parser] index out of range");
     idx = nidx;
     buffer = _data[idx / ::bit::size<UnsignedIntegerType>()];
     buffer &= UnsignedIntegerType(-1) << (idx & (::bit::size<UnsignedIntegerType>() - 1));  // clear low bits
@@ -138,9 +138,9 @@ parser<UnsignedIntegerType>::get_next_block() const
 {
     std::size_t block = idx / 64;
     std::size_t shift = idx % 64;
-    if (idx >= _size) throw std::out_of_range("[bit::parser] index out of range");
+    if (idx >= ::bit::size<UnsignedIntegerType>() * block_size) throw std::out_of_range("[bit::parser] index out of range");
     UnsignedIntegerType word = _data[block] >> shift;
-    if (shift and block + 1 < _size) word |= _data[block + 1] << (64 - shift);
+    if (shift and block + 1 < block_size) word |= _data[block + 1] << (64 - shift);
     return word;
 }
 
