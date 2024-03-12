@@ -7,8 +7,6 @@
 #include <utility> // std::pair
 #include <tuple> // TODO with variadic templates
 
-#include <iostream>
-
 namespace io {
 
 /*
@@ -174,7 +172,7 @@ void loader::visit(std::vector<T, Allocator>& vec)
     std::size_t n;
     basic_load(istrm, n);
     vec.resize(n);
-    for (auto& v : vec) visit(v);
+    for (auto& v : vec) visit(v); // because of this
 }
 
 template <class T1, class T2>
@@ -212,6 +210,11 @@ class saver
         // std::size_t num_bytes_vecs_of_pods;
 };
 
+/** 
+ * Extension of saver visitor with non-const methods.
+ * Primarily used when target classes load and store by using the very same 
+ * visitor method (which will be non-const since loaders are non-const).
+ */
 class mut_saver : public saver
 {
     public:
@@ -219,7 +222,7 @@ class mut_saver : public saver
 
         using saver::visit; // import template methods of base class
 
-        // non-const versions
+        
         template <typename T>
         void visit(T& var);
 
@@ -248,7 +251,7 @@ void saver::visit(std::vector<T, Allocator> const& vec)
     // DO NOT replace with basic_store
     std::size_t n = vec.size();
     basic_store(n, ostrm);
-    for (auto& v : vec) visit(v);
+    for (auto& v : vec) visit(v); // because of this
 }
 
 template <class T1, class T2>
@@ -274,7 +277,7 @@ void mut_saver::visit(std::vector<T, Allocator>& vec)
     // DO NOT replace with basic_store
     std::size_t n = vec.size();
     basic_store(n, ostrm);
-    for (auto& v : vec) visit(v);
+    for (auto& v : vec) visit(v); // because of this
 }
 
 template <class T1, class T2>
