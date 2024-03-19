@@ -2,6 +2,7 @@
 #define IO_HPP
 
 #include <fstream>
+#include <cstring> // memcpy
 #include <string>
 #include <vector>
 #include <utility> // std::pair
