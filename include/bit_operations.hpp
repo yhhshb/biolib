@@ -147,6 +147,97 @@ constexpr int popcount(T x) noexcept
     #endif
 }
 
+#if defined(__cplusplus) && (__cplusplus >= 202002L)
+inline int std_parity(uint8_t x) {return __builtin_parity(x);}
+inline int std_parity(uint16_t x) {return __builtin_parity(x);}
+inline int std_parity(uint32_t x) {return __builtin_parityl(x);}
+inline int std_parity(uint64_t x) {return __builtin_parityll(x);}
+#elif defined(__SSE4_2__)
+inline int sse4_parity(uint8_t x) {return __builtin_parity(x);}
+inline int sse4_parity(uint16_t x) {return __builtin_parity(x);}
+inline int sse4_parity(uint32_t x) {return __builtin_parityl(x);}
+inline int sse4_parity(uint64_t x) {return __builtin_parityll(x);}
+#elif defined(__clang__) // use same extension as gcc
+constexpr int clang_parity(uint8_t x) {return __builtin_parity(x);}
+constexpr int clang_parity(uint16_t x) {return __builtin_parity(x);}
+constexpr int clang_parity(uint32_t x) {return __builtin_parityl(x);}
+constexpr int clang_parity(uint64_t x) {return __builtin_parityll(x);}
+#elif defined(__GNUC__) || defined(__GNUG__)
+constexpr int gcc_parity(uint8_t x) {return __builtin_parity(x);}
+constexpr int gcc_parity(uint16_t x) {return __builtin_parity(x);}
+constexpr int gcc_parity(uint32_t x) {return __builtin_parityl(x);}
+constexpr int gcc_parity(uint64_t x) {return __builtin_parityll(x);}
+#elif defined(_MSC_VER) // DOES IT EXIST ?
+constexpr int mvsc_parity(uint8_t x) {return __builtin_parity(x);}
+constexpr int mvsc_parity(uint16_t x) {return __builtin_parity(x);}
+constexpr int mvsc_parity(uint32_t x) {return __builtin_parityl(x);}
+constexpr int mvsc_parity(uint64_t x) {return __builtin_parityll(x);}
+#else
+constexpr int emulated_parity(uint8_t x)
+{
+    x ^= x >> 4;
+    x &= 0xf;
+    return (0x6996 >> x) & 1;
+}
+
+constexpr int emulated_parity(uint8_t x)
+{
+    x ^= x >> 8;
+    x ^= x >> 4;
+    x &= 0xf;
+    return (0x6996 >> x) & 1;
+}
+
+constexpr int emulated_parity(uint32_t x)
+{
+    x ^= x >> 16;
+    x ^= x >> 8;
+    x ^= x >> 4;
+    x &= 0xf;
+    return (0x6996 >> x) & 1;
+}
+
+constexpr int emulated_parity(uint64_t x)
+{
+    x ^= x >> 32;
+    x ^= x >> 16;
+    x ^= x >> 8;
+    x ^= x >> 4;
+    x &= 0xf;
+    return ((0x6996 >> x) & 1);
+}
+
+template <typename T>
+constexpr int emulated_parity(T x)
+{
+    bool parity = false;  // parity will be the parity of v
+
+    while (x) {
+        parity = !parity;
+        x = x & (x - 1);
+    }
+    return static_cast<int>(parity);
+}
+#endif
+
+template <typename T>
+constexpr int parity(T x) noexcept
+{
+    #if __cplusplus >= 202002L
+        return std_parity(x); // Left if future C++ standards are going to include bit parity
+    #elif __SSE4_2__
+        return sse4_parity(x); // Again, it does not exist (I think) but better to leave it for future optimizations
+    #elif defined(__clang__)
+        return clang_parity(x);
+    #elif defined(__GNUC__) || defined(__GNUG__)
+        return gcc_parity(x);
+    #elif defined(_MSC_VER) // ??? Probable source of future problems ???
+        return mvsc_parity(x);
+    #else
+        return emulated_parity(x);
+    #endif
+}
+
 /* TODO
 inline int select(uint8_t x, std::size_t th)
 {
