@@ -158,7 +158,8 @@ array::prev_and_at(std::size_t idx) const
 std::size_t 
 array::lsb_at(std::size_t idx) const
 {
-    if (lsb.bit_width()) return lsb.template at<std::size_t>(idx);
+    // if (lsb.bit_width()) return lsb.template at<std::size_t>(idx);
+    if (lsb.bit_width()) return static_cast<std::size_t>(lsb.at(idx));
     return 0;
 }
 

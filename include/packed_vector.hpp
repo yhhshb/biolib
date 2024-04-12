@@ -14,6 +14,22 @@ template <typename UnderlyingType = max_width_native_type>
 class vector
 {
     public:
+        class reference
+        {
+            public:
+                reference(const vector* parent, std::size_t pos);
+
+                template <typename IntegerType>
+                void operator=(IntegerType const& x);
+
+                template <typename IntegerType>
+                explicit operator IntegerType() const;
+
+            private:
+                const vector* parent_vector;
+                const std::size_t position;
+        };
+
         vector(std::size_t bitwidth);
         vector(vector const&) noexcept = default;
         vector(vector&&) noexcept = default;
@@ -26,11 +42,11 @@ class vector
         template <typename T>
         T pop_back();
 
-        template <typename T>
-        T at(std::size_t index) const;
+        // template <typename T>
+        const reference at(std::size_t index) const;
 
-        template <typename T>
-        T operator[](std::size_t index) const;
+        // template <typename T>
+        reference operator[](std::size_t index);
 
         template <typename T>
         T front() const;
@@ -134,39 +150,19 @@ vector<UnderlyingType>::pop_back()
 }
 
 template <typename UnderlyingType>
-template <typename T>
-T 
+// template <typename T>
+const typename vector<UnderlyingType>::reference 
 vector<UnderlyingType>::at(std::size_t index) const
 {
-    if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
-    auto [idx, shift] = index_to_ut_coordinates(index);
-    // std::cerr << "index = " << index << " : idx = " << idx << ", shift = " << shift << "\n";
-    if (shift < 0) { // crossing border
-        UnderlyingType buffer = _data[idx];
-        // std::cerr << "_data[idx] = " << uint64_t(buffer) << "\n";
-        // std::size_t mask_shift = ut_bit_size + shift + _bitwidth;
-        UnderlyingType mask_shift = _bitwidth + shift;
-        // std::cerr << "mask_shift = " << uint64_t(mask_shift) << "\n";
-        buffer &= (UnderlyingType(1) << mask_shift) - 1;
-        buffer <<= -shift;
-        // std::cerr << "left part = " << uint64_t(buffer) << "\n";
-        auto buffer2 = _data[idx + 1] & ~((UnderlyingType(1) << (ut_bit_size - _bitwidth)) - 1);
-        // std::cerr << "right part = " << uint64_t(buffer2) << "\n";
-        buffer |= buffer2 >> (ut_bit_size + shift);
-        return static_cast<T>(buffer);
-    } else { // perfect fit
-        UnderlyingType buffer = static_cast<T>(_data[idx] >> shift);
-        if (_bitwidth != ut_bit_size) return buffer & ((T(1) << _bitwidth) - 1);
-        else return buffer;
-    }
+    return reference(this, index);
 }
 
 template <typename UnderlyingType>
-template <typename T>
-T 
-vector<UnderlyingType>::operator[](std::size_t index) const
+// template <typename T>
+typename vector<UnderlyingType>::reference 
+vector<UnderlyingType>::operator[](std::size_t index)
 {
-    at(index);
+    return reference(this, index);
 }
 
 template <typename UnderlyingType>
@@ -174,7 +170,7 @@ template <typename T>
 T 
 vector<UnderlyingType>::front() const
 {
-    return at(0);
+    return static_cast<T>(at(0));
 }
 
 template <typename UnderlyingType>
@@ -182,7 +178,7 @@ template <typename T>
 T 
 vector<UnderlyingType>::back() const
 {
-    return at(_size - 1);
+    return static_cast<T>(at(_size - 1));
 }
 
 template <typename UnderlyingType>
@@ -334,6 +330,65 @@ vector<UnderlyingType>::load(Loader& visitor)
     vector<UnderlyingType> r;
     r.visit(visitor);
     return r;
+}
+
+template <typename UnderlyingType>
+vector<UnderlyingType>::reference::reference(const vector<UnderlyingType>* parent, std::size_t pos)
+    : parent_vector(parent), position(pos)
+{
+    if (position >= parent_vector->size()) throw std::out_of_range("[packed vector]: unable to create reference outside storage space");
+}
+
+template <typename UnderlyingType>
+template <typename IntegerType>
+void
+vector<UnderlyingType>::reference::operator=(IntegerType const& val)
+{
+    assert(msbll(val) < parent_vector->bit_width());
+    auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
+    if (shift < 0) { // crossing border
+        UnderlyingType mask_shift = parent_vector->bit_width() + shift;
+        parent_vector->_data[idx] &= ~((UnderlyingType(1) << mask_shift) - 1);
+        parent_vector->_data[idx] |= static_cast<UnderlyingType>(val >> -shift);
+        parent_vector->_data[idx + 1] &= ((UnderlyingType(1) << (ut_bit_size - parent_vector->bit_width())) - 1);
+        parent_vector->_data[idx + 1] |= val << (parent_vector->ut_bit_size - parent_vector->bit_width());
+    } else { // perfect fit
+        UnderlyingType buffer = val << shift;
+        buffer |= parent_vector->_data.at(idx) & ((static_cast<UnderlyingType>(1) << shift) - 1); 
+        buffer |= ~(static_cast<UnderlyingType>(1) << ((parent_vector->bit_width() + shift) - 1));
+        // if (_bitwidth != ut_bit_size) return buffer & ((T(1) << _bitwidth) - 1);
+        // else return buffer;
+        parent_vector->_data[idx] = buffer;
+    }
+}
+
+template <typename UnderlyingType>
+template <typename IntegerType>
+vector<UnderlyingType>::reference::operator IntegerType() const
+{
+    // if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
+    auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
+    // std::cerr << "index = " << index << " : idx = " << idx << ", shift = " << shift << "\n";
+    if (shift < 0) { // crossing border
+        UnderlyingType buffer = parent_vector->_data.at(idx);
+        UnderlyingType mask_shift = parent_vector->bit_width() + shift;
+        // std::cerr << "_data[idx] = " << uint64_t(buffer) << "\n";
+        // std::cerr << "mask_shift = " << uint64_t(mask_shift) << "\n";
+        buffer &= (UnderlyingType(1) << mask_shift) - 1;
+        buffer <<= -shift;
+        // auto buffer2 = _data.at(idx + 1) & ~((UnderlyingType(1) << (ut_bit_size - _bitwidth)) - 1);
+        // buffer |= buffer2 >> (ut_bit_size + shift); // buffer2 was used only for debugging
+        // std::cerr << "left part = " << uint64_t(buffer) << "\n";
+        // std::cerr << "right part = " << uint64_t(buffer2) << "\n";
+        buffer |= parent_vector->_data.at(idx + 1) >> (parent_vector->ut_bit_size + shift);
+        return static_cast<IntegerType>(buffer);
+    } else { // perfect fit
+        UnderlyingType buffer = parent_vector->_data.at(idx) >> shift;
+        if (parent_vector->bit_width() != parent_vector->ut_bit_size) {
+            buffer &= ((static_cast<UnderlyingType>(1) << parent_vector->bit_width()) - 1);
+        }
+        return static_cast<IntegerType>(buffer);
+    }
 }
 
 } // namespace packed

@@ -179,7 +179,8 @@ void check_packed_vector(size_t seed, size_t vector_size)
     for (std::size_t i = 0; i < vector_size; ++i) {
         // std::cerr << pv.template at<std::size_t>(i) << ", ";
         // std::cerr << check.at(i) << "\n";
-        assert(pv.template at<T>(i) == check.at(i));
+        // assert(pv.template at<T>(i) == check.at(i));
+        assert(static_cast<T>(pv.at(i)) == check.at(i));
     }
 
     {

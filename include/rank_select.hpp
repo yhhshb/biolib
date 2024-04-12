@@ -108,8 +108,10 @@ METHOD_HEADER::rank1(std::size_t idx) const
     if (idx > _data.size()) throw std::out_of_range("[rank1] idx = " + std::to_string(idx) + " with size = " + std::to_string(_data.size()));
     std::size_t super_block_idx = idx / (super_block_block_size * block_bit_size);
     std::size_t block_idx = idx / block_bit_size;
-    std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
-    std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
+    // std::size_t super_rank = super_blocks.template at<std::size_t>(super_block_idx);
+    // std::size_t block_rank = blocks.template at<std::size_t>(block_idx);
+    std::size_t super_rank = static_cast<std::size_t>(super_blocks.at(super_block_idx));
+    std::size_t block_rank = static_cast<std::size_t>(blocks.at(block_idx));
     std::size_t local_rank = 0;
     for (auto itr = _data.cbegin() + block_idx * block_bit_size; itr != _data.cbegin() + idx; ++itr) local_rank += *itr; // no pre-computed table here
     // std::cerr << "super rank [" << super_block_idx << "] = " << super_rank << "\n";
