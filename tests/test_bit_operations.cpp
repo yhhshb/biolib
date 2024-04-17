@@ -4,6 +4,18 @@
 #include <cassert>
 #include "../include/bit_operations.hpp"
 
+template <typename T>
+constexpr int emulated_parity(T x) // local version of generic parity computation
+{
+    bool parity = false;  // parity will be the parity of v
+
+    while (x) {
+        parity = !parity;
+        x = x & (x - 1);
+    }
+    return static_cast<int>(parity);
+}
+
 void test_number(std::size_t t)
 {
     auto least = bit::lsb(t);
@@ -23,6 +35,7 @@ void test_number(std::size_t t)
         assert(not least);
         assert(not most);
     }
+    assert(bit::parity(t) == emulated_parity(t));
 }
 
 int main()
@@ -40,6 +53,8 @@ int main()
         auto x = distrib(gen);
         test_number(x);
     }
+
+    std::cerr << "Everything is OK\n";
 
     return 0;
 }

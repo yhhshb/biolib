@@ -55,10 +55,10 @@ static const std::array<uint8_t, 256> popvalues = {
 };
 
 template <typename T>
-inline std::size_t size() {return 8 * sizeof(T);}
+inline constexpr std::size_t size() {return 8 * sizeof(T);}
 
 template <typename T>
-inline std::size_t size([[maybe_unused]] T x)
+inline constexpr std::size_t size([[maybe_unused]] T x)
 {
     return 8 * sizeof(T);
 }
@@ -162,6 +162,10 @@ constexpr int clang_parity(uint8_t x) {return __builtin_parity(x);}
 constexpr int clang_parity(uint16_t x) {return __builtin_parity(x);}
 constexpr int clang_parity(uint32_t x) {return __builtin_parityl(x);}
 constexpr int clang_parity(uint64_t x) {return __builtin_parityll(x);}
+constexpr int clang_parity(std::size_t x) {
+    if constexpr (bit::size<std::size_t>() <= bit::size<uint32_t>()) return __builtin_parityl(x);
+    else return __builtin_parityll(x);
+}
 #elif defined(__GNUC__) || defined(__GNUG__)
 constexpr int gcc_parity(uint8_t x) {return __builtin_parity(x);}
 constexpr int gcc_parity(uint16_t x) {return __builtin_parity(x);}
