@@ -1,4 +1,4 @@
-#pragma once // just to not pollute the global scope with flags
+#pragma once // just to not pollute the global scope with specializations flags
 
 namespace bit {
 namespace rs {

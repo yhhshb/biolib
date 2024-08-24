@@ -7,6 +7,9 @@
 #include "bit_operations.hpp"
 #include "logtools.hpp"
 
+#define CLASS_HEADER template <typename UnderlyingType>
+#define METHOD_HEADER vector<UnderlyingType>
+
 namespace bit {
 namespace packed {
 
@@ -97,26 +100,26 @@ class vector
         friend bool operator!=(vector const& a, vector const& b) {return not (a == b);};
 };
 
-template <typename UnderlyingType>
-vector<UnderlyingType>::vector()
+CLASS_HEADER
+METHOD_HEADER::vector()
     : _size(0),
       _bitwidth(0)
 {
     if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying object type");
 }
 
-template <typename UnderlyingType>
-vector<UnderlyingType>::vector(std::size_t bitwidth)
+CLASS_HEADER
+METHOD_HEADER::vector(std::size_t bitwidth)
     : _size(0),
       _bitwidth(bitwidth)
 {
     if (_bitwidth > ut_bit_size) throw std::length_error("[packed vector] objects should fit in the underlying object type");
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename T>
 void
-vector<UnderlyingType>::push_back(T val)
+METHOD_HEADER::push_back(T val)
 {
     assert(val < (static_cast<std::size_t>(1) << _bitwidth));
     // throw std::runtime_error("[packed vector] The value that is being pushed back is wider than the bitwidth");
@@ -139,86 +142,86 @@ vector<UnderlyingType>::push_back(T val)
     ++_size;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename T>
 T
-vector<UnderlyingType>::pop_back()
+METHOD_HEADER::pop_back()
 {
     T res = at(_size - 1);
     --_size;
     return res;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 // template <typename T>
 const typename vector<UnderlyingType>::reference 
-vector<UnderlyingType>::at(std::size_t index) const
+METHOD_HEADER::at(std::size_t index) const
 {
     return reference(this, index);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 // template <typename T>
 typename vector<UnderlyingType>::reference 
-vector<UnderlyingType>::operator[](std::size_t index)
+METHOD_HEADER::operator[](std::size_t index)
 {
     return reference(this, index);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename T>
 T 
-vector<UnderlyingType>::front() const
+METHOD_HEADER::front() const
 {
     return static_cast<T>(at(0));
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename T>
 T 
-vector<UnderlyingType>::back() const
+METHOD_HEADER::back() const
 {
     return static_cast<T>(at(_size - 1));
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::bit_width() const noexcept
+METHOD_HEADER::bit_width() const noexcept
 {
     return _bitwidth;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 UnderlyingType const* 
-vector<UnderlyingType>::data() const noexcept
+METHOD_HEADER::data() const noexcept
 {
     return _data.data();
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::vector<UnderlyingType> const& 
-vector<UnderlyingType>::vector_data() const noexcept
+METHOD_HEADER::vector_data() const noexcept
 {
     return _data;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 bool 
-vector<UnderlyingType>::empty() const noexcept
+METHOD_HEADER::empty() const noexcept
 {
     return _size == 0;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::size() const noexcept
+METHOD_HEADER::size() const noexcept
 {
     return _size;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::bit_size() const noexcept
+METHOD_HEADER::bit_size() const noexcept
 {
     logging_tools::libra l;
     visit(l);
@@ -226,123 +229,123 @@ vector<UnderlyingType>::bit_size() const noexcept
     return logged_size;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::underlying_size() const noexcept
+METHOD_HEADER::underlying_size() const noexcept
 {
     return _data.size();
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::max_size() const noexcept
+METHOD_HEADER::max_size() const noexcept
 {
     return _data.max_size() * ut_bit_size / _bitwidth;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::reserve(std::size_t capacity)
+METHOD_HEADER::reserve(std::size_t capacity)
 {
     _data.reserve(capacity * _bitwidth / ut_bit_size + 1);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::size_t 
-vector<UnderlyingType>::capacity() const noexcept
+METHOD_HEADER::capacity() const noexcept
 {
     return _data.capacity() * ut_bit_size / _bitwidth;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::shrink_to_fit() noexcept
+METHOD_HEADER::shrink_to_fit() noexcept
 {
     _data.shrink_to_fit();
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::resize(std::size_t size)
+METHOD_HEADER::resize(std::size_t size)
 {
     resize_data(size);
     _size = size;
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::resize_data(std::size_t size)
+METHOD_HEADER::resize_data(std::size_t size)
 {
     _data.resize(size * _bitwidth / ut_bit_size + 1);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::clear() noexcept
+METHOD_HEADER::clear() noexcept
 {
     _size = 0;
     _data.clear();
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 void 
-vector<UnderlyingType>::swap(vector& other) noexcept
+METHOD_HEADER::swap(vector& other) noexcept
 {
     _data.swap(other._data);
     std::swap(_size, other._size);
     std::swap(_bitwidth, other._bitwidth);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 std::tuple<std::size_t, long long> 
-vector<UnderlyingType>::index_to_ut_coordinates(std::size_t idx) const noexcept
+METHOD_HEADER::index_to_ut_coordinates(std::size_t idx) const noexcept
 {
     std::size_t ut_idx = (idx * _bitwidth) / ut_bit_size;
     long long ut_shift = ut_bit_size - _bitwidth - ((idx * _bitwidth) % ut_bit_size);
     return std::make_tuple(ut_idx, ut_shift);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <class Visitor>
 void 
-vector<UnderlyingType>::visit(Visitor& visitor)
+METHOD_HEADER::visit(Visitor& visitor)
 {
     visitor.visit(_data);
     visitor.visit(_size);
     visitor.visit(_bitwidth);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <class Visitor>
 void 
-vector<UnderlyingType>::visit(Visitor& visitor) const
+METHOD_HEADER::visit(Visitor& visitor) const
 {
     visitor.visit(_data);
     visitor.visit(_size);
     visitor.visit(_bitwidth);
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <class Loader>
 vector<UnderlyingType> 
-vector<UnderlyingType>::load(Loader& visitor)
+METHOD_HEADER::load(Loader& visitor)
 {
     vector<UnderlyingType> r;
     r.visit(visitor);
     return r;
 }
 
-template <typename UnderlyingType>
-vector<UnderlyingType>::reference::reference(const vector<UnderlyingType>* parent, std::size_t pos)
+CLASS_HEADER
+METHOD_HEADER::reference::reference(const vector<UnderlyingType>* parent, std::size_t pos)
     : parent_vector(parent), position(pos)
 {
     if (position >= parent_vector->size()) throw std::out_of_range("[packed vector]: unable to create reference outside storage space");
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename IntegerType>
 void
-vector<UnderlyingType>::reference::operator=(IntegerType const& val)
+METHOD_HEADER::reference::operator=(IntegerType const& val)
 {
     assert(msbll(val) < parent_vector->bit_width());
     auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
@@ -362,9 +365,9 @@ vector<UnderlyingType>::reference::operator=(IntegerType const& val)
     }
 }
 
-template <typename UnderlyingType>
+CLASS_HEADER
 template <typename IntegerType>
-vector<UnderlyingType>::reference::operator IntegerType() const
+METHOD_HEADER::reference::operator IntegerType() const
 {
     // if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
     auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
@@ -384,12 +387,15 @@ vector<UnderlyingType>::reference::operator IntegerType() const
         return static_cast<IntegerType>(buffer);
     } else { // perfect fit
         UnderlyingType buffer = parent_vector->_data.at(idx) >> shift;
-        if (parent_vector->bit_width() != parent_vector->ut_bit_size) {
+        if (parent_vector->bit_width() != parent_vector->ut_bit_size) { // mask if it does not exactly fits the underlying type
             buffer &= ((static_cast<UnderlyingType>(1) << parent_vector->bit_width()) - 1);
         }
         return static_cast<IntegerType>(buffer);
     }
 }
+
+#undef METHOD_HEADER
+#undef CLASS_HEADER
 
 } // namespace packed
 } // namespace bit

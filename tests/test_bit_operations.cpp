@@ -54,6 +54,12 @@ int main()
         test_number(x);
     }
 
+    uint64_t s = 0;
+    s |= static_cast<uint64_t>(1) << 8;
+    s |= static_cast<uint64_t>(1) << 24;
+    std::cerr << "select1(" << s << ", " << "0) = " << bit::select1(s, 0) << std::endl;
+    std::cerr << "select1(" << s << ", " << "1) = " << bit::select1(s, 1) << std::endl;
+
     std::cerr << "Everything is OK\n";
 
     return 0;

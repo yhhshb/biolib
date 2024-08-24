@@ -311,6 +311,16 @@ inline int select(uint32_t x, std::size_t th)
 }
 */
 
+inline int rank1(uint64_t x, std::size_t pos)
+{
+    return popcount(x & ((static_cast<uint64_t>(1) << pos) - 1));
+}
+
+inline int rank0(uint64_t x, std::size_t pos)
+{
+    return rank1(~x, pos);
+}
+
 inline int select1(uint64_t x, std::size_t th)
 {
 #ifndef __BMI2__
@@ -372,7 +382,7 @@ inline std::size_t popcount(Vector vec, std::size_t idx)
     return popc;
 }
 
-inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx)
+inline std::size_t rank1(uint8_t const * const arr, std::size_t bit_idx)
 {
     typedef max_width_native_type view_t;
     view_t const * const p = reinterpret_cast<view_t const *>(arr);
@@ -400,13 +410,13 @@ inline std::size_t rank(uint8_t const * const arr, std::size_t bit_idx)
 }
 
 template <class Vector>
-inline std::size_t rank(Vector vec, std::size_t stop, std::size_t start = 0)
+inline std::size_t rank1(Vector vec, std::size_t stop, std::size_t start = 0)
 {
     if (start > vec.size() or stop > vec.size()) throw std::out_of_range("[rank] indexes must be smaller than vector size");
     if (start > stop) throw std::logic_error("[rank] stop index < start");
     const std::size_t byte_start = start * sizeof(typename Vector::value_type);
     const std::size_t byte_stop = stop * sizeof(typename Vector::value_type);
-    return rank(reinterpret_cast<uint8_t const *>(&vec.data()[byte_start]), byte_stop);
+    return rank1(reinterpret_cast<uint8_t const *>(&vec.data()[byte_start]), byte_stop);
 }
 
 template <typename T>

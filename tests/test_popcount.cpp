@@ -38,7 +38,7 @@ void check_vector_popcount(size_t seed, size_t vector_size, size_t insertions)
 
     // std::cerr << "nblocks = " << vec_vec_view.size() << "\n";
     auto popvecvec = bit::popcount(vec_vec_view, vec_vec_view.size());
-    auto popplainvec = bit::rank(plain_vec_view, vec_vec_view.size() * sizeof(T) * 8 - 1);
+    auto popplainvec = bit::rank1(plain_vec_view, vec_vec_view.size() * sizeof(T) * 8 - 1);
     // std::cerr << "whole popcount of vector view = " << popvecvec << "\n";
     // std::cerr << "whole popcount of array view = " << popplainvec << std::endl;
     assert(popvecvec == popplainvec);
@@ -46,7 +46,7 @@ void check_vector_popcount(size_t seed, size_t vector_size, size_t insertions)
     for (size_t i = 0; i < vec_vec_view.size(); ++i) {
         popvecvec = bit::popcount(vec_vec_view, i + 1);
         // std::cerr << "block [" << i << "]\n";
-        popplainvec = bit::rank(plain_vec_view, (i + 1) * sizeof(T) * 8 - 1);
+        popplainvec = bit::rank1(plain_vec_view, (i + 1) * sizeof(T) * 8 - 1);
         // std::cerr << "popcount of vector view = " << popvecvec << "\n";
         // std::cerr << "popcount of array view = " << popplainvec << std::endl;
         assert(popvecvec == popplainvec);
