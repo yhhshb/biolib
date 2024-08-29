@@ -17,10 +17,23 @@ template <typename UnderlyingType = max_width_native_type>
 class vector
 {
     public:
+        class const_reference
+        {
+            public:
+                const_reference(vector const * const parent, std::size_t pos);
+
+                template <typename IntegerType>
+                explicit operator IntegerType() const;
+
+            private:
+                vector const * const parent_vector;
+                const std::size_t position;
+        };
+
         class reference
         {
             public:
-                reference(const vector* parent, std::size_t pos);
+                reference(vector *const parent, std::size_t pos);
 
                 template <typename IntegerType>
                 void operator=(IntegerType const& x);
@@ -29,7 +42,7 @@ class vector
                 explicit operator IntegerType() const;
 
             private:
-                const vector* parent_vector;
+                vector *const parent_vector;
                 const std::size_t position;
         };
 
@@ -45,10 +58,7 @@ class vector
         template <typename T>
         T pop_back();
 
-        // template <typename T>
-        const reference at(std::size_t index) const;
-
-        // template <typename T>
+        const_reference at(std::size_t index) const;
         reference operator[](std::size_t index);
 
         template <typename T>
@@ -154,10 +164,10 @@ METHOD_HEADER::pop_back()
 
 CLASS_HEADER
 // template <typename T>
-const typename vector<UnderlyingType>::reference 
+typename vector<UnderlyingType>::const_reference 
 METHOD_HEADER::at(std::size_t index) const
 {
-    return reference(this, index);
+    return const_reference(this, index);
 }
 
 CLASS_HEADER
@@ -336,7 +346,7 @@ METHOD_HEADER::load(Loader& visitor)
 }
 
 CLASS_HEADER
-METHOD_HEADER::reference::reference(const vector<UnderlyingType>* parent, std::size_t pos)
+METHOD_HEADER::reference::reference(vector<UnderlyingType> *const parent, std::size_t pos)
     : parent_vector(parent), position(pos)
 {
     if (position >= parent_vector->size()) throw std::out_of_range("[packed vector]: unable to create reference outside storage space");
@@ -347,29 +357,38 @@ template <typename IntegerType>
 void
 METHOD_HEADER::reference::operator=(IntegerType const& val)
 {
-    assert(msbll(val) < parent_vector->bit_width());
+    // std::cerr << "--------------- operator= ------------------\n";
+    assert(val == 0 or msbll(val) < parent_vector->bit_width());
     auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
+    // std::cerr << "index = " << index << " : idx = " << idx << ", shift = " << shift << "\n";
     if (shift < 0) { // crossing border
         UnderlyingType mask_shift = parent_vector->bit_width() + shift;
         parent_vector->_data[idx] &= ~((UnderlyingType(1) << mask_shift) - 1);
         parent_vector->_data[idx] |= static_cast<UnderlyingType>(val >> -shift);
-        parent_vector->_data[idx + 1] &= ((UnderlyingType(1) << (ut_bit_size - parent_vector->bit_width())) - 1);
-        parent_vector->_data[idx + 1] |= val << (parent_vector->ut_bit_size - parent_vector->bit_width());
+        // parent_vector->_data[idx + 1] &= ((UnderlyingType(1) << (ut_bit_size - parent_vector->bit_width())) - 1);
+        // parent_vector->_data[idx + 1] |= val << (parent_vector->ut_bit_size - parent_vector->bit_width());
+        parent_vector->_data[idx + 1] &= ((UnderlyingType(1) << (ut_bit_size + shift)) - 1);
+        parent_vector->_data[idx + 1] |= val << (ut_bit_size + shift);
     } else { // perfect fit
+        // std::cerr << "data at(" << idx << ") = " << static_cast<std::size_t>(parent_vector->_data.at(idx)) << "\n";
         UnderlyingType buffer = val << shift;
+        // std::cerr << "buffer : " << static_cast<std::size_t>(buffer) << "\n";
         buffer |= parent_vector->_data.at(idx) & ((static_cast<UnderlyingType>(1) << shift) - 1); 
-        buffer |= ~(static_cast<UnderlyingType>(1) << ((parent_vector->bit_width() + shift) - 1));
-        // if (_bitwidth != ut_bit_size) return buffer & ((T(1) << _bitwidth) - 1);
-        // else return buffer;
+        // std::cerr << static_cast<std::size_t>(buffer) << "\n";
+        if (parent_vector->_bitwidth + shift != parent_vector->ut_bit_size) {
+            buffer |= parent_vector->_data.at(idx) & ~((static_cast<UnderlyingType>(1) << (parent_vector->bit_width() + shift)) - 1);
+        }
+        // std::cerr << static_cast<std::size_t>(buffer) << "\n";
         parent_vector->_data[idx] = buffer;
     }
+    // std::cerr << "**************************************************\n";
 }
 
 CLASS_HEADER
 template <typename IntegerType>
 METHOD_HEADER::reference::operator IntegerType() const
 {
-    // if (index >= _size) throw std::out_of_range("[packed vector]: tried to query element at position " + std::to_string(index) + "(vector size is " + std::to_string(_size) + ")");
+    // std::cerr << "--------------- operator cast ----------------\n";
     auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
     // std::cerr << "index = " << index << " : idx = " << idx << ", shift = " << shift << "\n";
     if (shift < 0) { // crossing border
@@ -379,16 +398,48 @@ METHOD_HEADER::reference::operator IntegerType() const
         // std::cerr << "mask_shift = " << uint64_t(mask_shift) << "\n";
         buffer &= (UnderlyingType(1) << mask_shift) - 1;
         buffer <<= -shift;
-        // auto buffer2 = _data.at(idx + 1) & ~((UnderlyingType(1) << (ut_bit_size - _bitwidth)) - 1);
+        // auto buffer2 = parent_vector->_data.at(idx + 1) & ~((UnderlyingType(1) << (ut_bit_size - parent_vector->_bitwidth)) - 1);
         // buffer |= buffer2 >> (ut_bit_size + shift); // buffer2 was used only for debugging
         // std::cerr << "left part = " << uint64_t(buffer) << "\n";
         // std::cerr << "right part = " << uint64_t(buffer2) << "\n";
         buffer |= parent_vector->_data.at(idx + 1) >> (parent_vector->ut_bit_size + shift);
         return static_cast<IntegerType>(buffer);
     } else { // perfect fit
+        // std::cerr << "data at(" << idx << ") = " << static_cast<std::size_t>(parent_vector->_data.at(idx)) << "\n";
         UnderlyingType buffer = parent_vector->_data.at(idx) >> shift;
-        if (parent_vector->bit_width() != parent_vector->ut_bit_size) { // mask if it does not exactly fits the underlying type
-            buffer &= ((static_cast<UnderlyingType>(1) << parent_vector->bit_width()) - 1);
+        // std::cerr << static_cast<std::size_t>(buffer) << "\n";
+        if (parent_vector->_bitwidth != parent_vector->ut_bit_size) { // mask if it does not exactly fits the underlying type
+            buffer &= ((static_cast<UnderlyingType>(1) << parent_vector->bit_width())) - 1;
+        }
+        // std::cerr << static_cast<std::size_t>(buffer) << "\n";
+        return static_cast<IntegerType>(buffer);
+    }
+    // std::cerr << "**************************************************\n";
+}
+
+CLASS_HEADER
+METHOD_HEADER::const_reference::const_reference(vector<UnderlyingType> const * const parent, std::size_t pos)
+    : parent_vector(parent), position(pos)
+{
+    if (position >= parent_vector->size()) throw std::out_of_range("[packed vector]: unable to create reference outside storage space");
+}
+
+CLASS_HEADER
+template <typename IntegerType>
+METHOD_HEADER::const_reference::operator IntegerType() const
+{
+    auto [idx, shift] = parent_vector->index_to_ut_coordinates(position);
+    if (shift < 0) { // crossing border
+        UnderlyingType buffer = parent_vector->_data.at(idx);
+        UnderlyingType mask_shift = parent_vector->bit_width() + shift;
+        buffer &= (UnderlyingType(1) << mask_shift) - 1;
+        buffer <<= -shift;
+        buffer |= parent_vector->_data.at(idx + 1) >> (parent_vector->ut_bit_size + shift);
+        return static_cast<IntegerType>(buffer);
+    } else { // perfect fit
+        UnderlyingType buffer = parent_vector->_data.at(idx) >> shift;
+        if (parent_vector->_bitwidth != parent_vector->ut_bit_size) { // mask if it does not exactly fits the underlying type
+            buffer &= ((static_cast<UnderlyingType>(1) << parent_vector->bit_width())) - 1;
         }
         return static_cast<IntegerType>(buffer);
     }

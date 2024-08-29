@@ -172,14 +172,8 @@ void check_packed_vector(size_t seed, size_t vector_size)
         pv.push_back(val);
         check.push_back(val);
     }
-    // std::cerr << check << "\n";
-    // for (auto itr = pv.vector_data().cbegin(); itr != pv.vector_data().cend(); ++itr) std::cerr << uint16_t(*itr) << " ";
-    // std::cerr << "\n";
-    // std::cerr << "size = " << pv.size() << std::endl;
+
     for (std::size_t i = 0; i < vector_size; ++i) {
-        // std::cerr << pv.template at<std::size_t>(i) << ", ";
-        // std::cerr << check.at(i) << "\n";
-        // assert(pv.template at<T>(i) == check.at(i));
         assert(static_cast<T>(pv.at(i)) == check.at(i));
     }
 
@@ -189,6 +183,39 @@ void check_packed_vector(size_t seed, size_t vector_size)
         io::store(pv, sname);
         pv = io::load<bit::packed::vector<T>>(sname);
         assert(copy == pv);
+    }
+
+    {
+        check.resize(vector_size);
+        for (std::size_t i = 0; i < vector_size; ++i) {
+            auto val = distrib(gen);
+            pv[i] = val;
+            check[i] = val;
+            // std::cerr << "[" << i << "] : " << static_cast<std::size_t>(pv.at(i)) << " == " << check.at(i) << "\n";
+            // std::cerr << "at(" << i << ") : " << static_cast<std::size_t>(pv.at(i)) << " == " << check.at(i) << "\n";
+            assert(static_cast<std::size_t>(pv[i]) == check.at(i));
+            assert(static_cast<std::size_t>(pv.at(i)) == check.at(i));
+        }
+        for (std::size_t i = 0; i < vector_size; ++i) {
+            assert(static_cast<std::size_t>(pv[i]) == check.at(i));
+            assert(static_cast<std::size_t>(pv.at(i)) == check.at(i));
+        }
+    }
+
+    {
+        assert(pv.size() == vector_size);
+        std::uniform_int_distribution<std::size_t> rndidx(0, vector_size - 1);
+        for (std::size_t i = 0; i < vector_size / 2; ++i) {
+            auto idx = rndidx(gen);
+            auto val = distrib(gen);
+            assert(idx < pv.size());
+            check[idx] = val;
+            pv[idx] = val;
+        }
+        for (std::size_t i = 0; i < vector_size; ++i) {
+            assert(static_cast<std::size_t>(pv[i]) == check.at(i));
+            assert(static_cast<std::size_t>(pv.at(i)) == check.at(i));
+        }
     }
 
     std::cerr << "bit width " << L << " over " << sizeof(T) * 8 << ", done\n";
