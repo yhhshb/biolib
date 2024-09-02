@@ -311,12 +311,16 @@ inline int select(uint32_t x, std::size_t th)
 }
 */
 
-inline int rank1(uint64_t x, std::size_t pos)
+template <typename T>
+constexpr int rank1(T x, std::size_t pos)
 {
+    ++pos;
+    if (pos == 8 * sizeof(x)) return popcount(x);
     return popcount(x & ((static_cast<uint64_t>(1) << pos) - 1));
 }
 
-inline int rank0(uint64_t x, std::size_t pos)
+template <typename T>
+constexpr int rank0(T x, std::size_t pos)
 {
     return rank1(~x, pos);
 }
@@ -410,7 +414,7 @@ inline std::size_t rank1(uint8_t const * const arr, std::size_t bit_idx)
 }
 
 template <class Vector>
-inline std::size_t rank1(Vector vec, std::size_t stop, std::size_t start = 0)
+inline std::size_t rank1(Vector vec, std::size_t start, std::size_t stop)
 {
     if (start > vec.size() or stop > vec.size()) throw std::out_of_range("[rank] indexes must be smaller than vector size");
     if (start > stop) throw std::logic_error("[rank] stop index < start");

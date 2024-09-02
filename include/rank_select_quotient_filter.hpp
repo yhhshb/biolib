@@ -1,8 +1,7 @@
 #ifndef RANK_SELECT_QUOTIENT_FILTER_HPP
 #define RANK_SELECT_QUOTIENT_FILTER_HPP
 
-#include <optional>
-#include "packed_vector.hpp"
+#include "bit_operations.hpp"
 
 namespace membership {
 namespace approximate {
@@ -35,6 +34,7 @@ class rank_select_quotient_filter
             private:
                 rank_select_quotient_filter const* parent_filter;
                 std::size_t idx;
+                std::size_t runend_idx;
 
                 void find_next_run();
 
@@ -190,18 +190,19 @@ CLASS_HEADER
 bool
 METHOD_HEADER::contains(const key_type& hval) const
 {
-    fprintf(stderr, "-------------------------------------------------------\n");
+    // fprintf(stderr, "-------------------------------------------------------\n");
     auto [q, r] = get_quotient_and_remainder(hval);
+    // fprintf(stderr, "q = %llu, r = %llu\n", q, r);
     bool ret = false;
     if (get_occupieds_at(q)) {
         auto s = find_runend(q);
-        fprintf(stderr, "runend index is %llu\n", s);
+        // fprintf(stderr, "runend index is %llu\n", s);
         auto [block_idx, local_shift] = index_to_block_indexes(s);
         auto block = block_at(block_idx);
         do {
             auto rem = get_remainder_at(block, local_shift);
-            fprintf(stderr, "position %llu contains remainder %llu\n", q, rem);
-            fprintf(stderr, "query: (%llu, %llu)\n", q, r);
+            // fprintf(stderr, "position %llu contains remainder %llu\n", q, rem);
+            // fprintf(stderr, "query: (%llu, %llu)\n", q, r);
             if (rem == r) ret = true; //return true;
             --s;
             if (local_shift == 0) {
@@ -210,7 +211,7 @@ METHOD_HEADER::contains(const key_type& hval) const
             } else --local_shift;
         } while(s > q and not get_runends_at(s));
     }
-    fprintf(stderr, "*******************************************************\n");
+    // fprintf(stderr, "*******************************************************\n");
     return ret;
 }
 
@@ -279,7 +280,6 @@ void
 METHOD_HEADER::insert(key_type const& hval)
 {
     auto find_first_unused_slot = [this](std::size_t idx) {
-        fprintf(stderr, "find_first_unused_slot\n");
         auto s = find_runend(idx);
         while (idx <= s) {
             idx = s + 1;
@@ -289,12 +289,12 @@ METHOD_HEADER::insert(key_type const& hval)
     };
 
     // TODO resize ?
-    fprintf(stderr, "-------------------------------------------------------\n");
+    // fprintf(stderr, "-------------------------------------------------------\n");
     auto [q, rem] = get_quotient_and_remainder(hval);
-    fprintf(stderr, "inserting %llu in position %llu\n", rem, q);
+    // fprintf(stderr, "inserting %llu in position %llu\n", rem, q);
     auto s = find_runend(q);
     if (s > q) {
-        fprintf(stderr, "inserting from %llu\n", s);
+        // fprintf(stderr, "inserting from %llu\n", s);
         ++s;
         auto n = find_first_unused_slot(s);
         if (get_occupieds_at(n) or get_runends_at(n) or get_remainder_at(n)) throw std::runtime_error("[insert] find_first_unused_slot returned a non-empty position");
@@ -304,16 +304,14 @@ METHOD_HEADER::insert(key_type const& hval)
         // update_metadata(); same for metadata (offsets), update them while shifting
         if (get_occupieds_at(q)) clear_runends_at(s - 1); // this is here since we have to update occupieds at position q anyway so we always incur in a cache miss
     } else { // slot is free (select1 not defined is a corner-case when the block is empty)
-        fprintf(stderr, "no collisions, inserting r = %llu in q = %llu\n", rem, q);
+        // fprintf(stderr, "no collisions, inserting r = %llu in q = %llu\n", rem, q);
         insert_in_empty_slot(q, rem);
-        // fprintf(stderr, "checkpoint 2\n");
         set_runends_at(q);
-        // fprintf(stderr, "checkpoint 3\n");
         // No update necessary because distance of cell from its runend is always 0 (they are at the same indexes)
     }
     set_occupieds_at(q);
     ++m_size;
-    fprintf(stderr, "*******************************************************\n");
+    // fprintf(stderr, "*******************************************************\n");
 }
 
 CLASS_HEADER
@@ -349,7 +347,7 @@ METHOD_HEADER::get_quotient_and_remainder(key_type hval) const
 {
     const key_type remainder = hval & ((static_cast<key_type>(1) << m_remainder_bitwidth) - 1);
     const key_type quotient = hval >> m_remainder_bitwidth;
-    if (quotient >= blocks_data.size()) throw std::length_error("[get_quotient_and_remainder] quotient out of bounds");
+    if (quotient >= capacity()) throw std::length_error("[get_quotient_and_remainder] quotient out of bounds");
     return std::make_tuple(quotient, remainder);
 }
 
@@ -494,38 +492,39 @@ METHOD_HEADER::find_runend(std::size_t idx) const
 {
     auto [block_idx, local_idx] = index_to_block_indexes(idx);
     auto block = block_at(block_idx);
-    auto local_rank = bit::rank1(*block.occupieds, local_idx);
+    // fprintf(stderr, "block.occupieds = %llu\n", *block.occupieds);
+    auto local_rank = bit::rank1(static_cast<uint64_t>(*block.occupieds), local_idx);
     auto select_idx_start = idx - local_idx + *block.offset; // go to the first index in the block and add its (sampled) offset
-    fprintf(stderr, "idx = %llu, block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, local_rank = %llu, select_idx_start = %llu\n", 
-        idx, 
-        block_idx,
-        local_idx,
-        *block.offset, 
-        local_rank, 
-        select_idx_start
-    );
+    // fprintf(stderr, "idx = %llu, block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, local_rank = %llu, select_idx_start = %llu\n", 
+    //     idx, 
+    //     block_idx,
+    //     local_idx,
+    //     *block.offset, 
+    //     local_rank, 
+    //     select_idx_start
+    // );
 
     // find the local_rank-th set bit in runends from position select_idx_start
-    auto [bidx, blidx] = index_to_block_indexes(select_idx_start);
-    auto bitr = block_at(bidx);
-    auto select_query = *bitr.runends >> blidx;
+    std::tie(block_idx, local_idx) = index_to_block_indexes(select_idx_start);
+    auto bitr = block_at(block_idx);
+    auto select_query = *bitr.runends >> local_idx;
     auto pcnt = bit::popcount(select_query);
-    fprintf(stderr, "block from which to start to select = %llu, local_idx = %llu, runends = %llu, popcount(%llu) = %u\n", 
-        bidx,
-        blidx,
-        *bitr.runends,
-        select_query, 
-        pcnt
-    );
+    // fprintf(stderr, "block from which to start to select = %llu, local_idx = %llu, runends = %llu, popcount(%llu) = %u\n", 
+    //     bidx,
+    //     blidx,
+    //     *bitr.runends,
+    //     select_query, 
+    //     pcnt
+    // );
     while (pcnt < local_rank) { // shift blocks and add their rank until we find block we want
         local_rank -= pcnt;
-        select_idx_start += remainders_per_block - blidx;
-        std::tie(bidx, blidx) = index_to_block_indexes(select_idx_start);
-        bitr = block_at(bidx);
-        pcnt = bit::popcount(*bitr.runends >> blidx);
+        select_idx_start += remainders_per_block - local_idx;
+        std::tie(block_idx, local_idx) = index_to_block_indexes(select_idx_start);
+        bitr = block_at(block_idx);
+        pcnt = bit::popcount(*bitr.runends >> local_idx);
     }
     
-    fprintf(stderr, "select query = %llu\nfinal local rank = %d\n", select_query, local_rank);
+    // fprintf(stderr, "select query = %llu\nfinal local rank = %d\n", select_query, local_rank);
     if (select_query != 0 and local_rank != 0) return select_idx_start + bit::select1(select_query, local_rank - 1);
     return idx;
 }
@@ -534,7 +533,8 @@ CLASS_HEADER
 std::size_t
 METHOD_HEADER::blocks_size() const noexcept
 {
-    return capacity() / remainders_per_block;
+    std::size_t x = capacity() / remainders_per_block;
+    return (x != 0) ? x : 1;
 }
 
 CLASS_HEADER
@@ -554,7 +554,7 @@ typename METHOD_HEADER::block_t
 METHOD_HEADER::block_at(std::size_t idx) const
 {
     auto bidx = block_byte_size() * idx;
-    if (bidx >= blocks_data.size()) throw std::out_of_range("Trying to access out of bounds block");
+    if (bidx >= blocks_data.size()) throw std::out_of_range("[block_at] trying to access out-of-bounds block");
     block_t block;
     uint8_t* block_start_ptr = const_cast<uint8_t*>(blocks_data.data()) + block_byte_size() * idx; // for simplicity
     block.offset = reinterpret_cast<uint8_t*>(block_start_ptr);
@@ -602,21 +602,21 @@ METHOD_HEADER::get_remainder_at(block_t const& block, std::size_t position) cons
 {
     if (position >= remainders_per_block) throw std::out_of_range("Trying to access out of bounds remainder in block");
     auto [idx, shift] = index_to_remainder_coordinates(position);
+    // fprintf(stderr, "position = %llu, UT idx = %llu, shift = %lld\n", position, idx, shift);
+    // fprintf(stderr, "remainders[%llu] = %llu\n", idx, block.remainders[idx]);
+    UnderlyingType buffer = block.remainders[idx];
     if (shift < 0) { // crossing border
-        auto buffer = block.remainders[idx];
         remainder_pack_t mask_shift = m_remainder_bitwidth + shift;
         buffer &= (remainder_pack_t(1) << mask_shift) - 1;
         buffer <<= -shift;
         buffer |= block.remainders[idx + 1] >> (remainders_per_block + shift);
-        return static_cast<std::size_t>(buffer);
     } else { // perfect fit
-        auto buffer = block.remainders[idx] >> shift;
+        buffer >>= shift;
         if (m_remainder_bitwidth + shift != remainders_per_block) { // mask if it does not exactly fits
             buffer &= ((static_cast<remainder_pack_t>(1) << m_remainder_bitwidth) - 1);
         }
-        return static_cast<std::size_t>(buffer);
     }
-    // should never reach here
+    return static_cast<std::size_t>(buffer);
 }
 
 CLASS_HEADER
@@ -625,9 +625,9 @@ METHOD_HEADER::set_remainder_at(block_t& block, std::size_t position, std::size_
 {
     assert(val == 0 or bit::msbll(val) < m_remainder_bitwidth);
     auto [idx, shift] = index_to_remainder_coordinates(position);
-    fprintf(stderr, "position = %llu, UT idx = %llu, shift = %lld\n", position, idx, shift);
-    fprintf(stderr, "inserting : %llu\n", val);
-    fprintf(stderr, "remainders[idx] = %llu\n", block.remainders[idx]);
+    // fprintf(stderr, "position = %llu, UT idx = %llu, shift = %lld\n", position, idx, shift);
+    // fprintf(stderr, "inserting : %llu\n", val);
+    // fprintf(stderr, "remainders[%llu] = %llu\n", idx, block.remainders[idx]);
     if (shift < 0) { // crossing border
         remainder_pack_t mask_shift = m_remainder_bitwidth + shift;
         block.remainders[idx] &= ~((remainder_pack_t(1) << mask_shift) - 1);
@@ -641,7 +641,7 @@ METHOD_HEADER::set_remainder_at(block_t& block, std::size_t position, std::size_
             buffer |= block.remainders[idx] & ~((static_cast<remainder_pack_t>(1) << (m_remainder_bitwidth + shift)) - 1);
         block.remainders[idx] = buffer;
     }
-    fprintf(stderr, "remainders[idx] = %llu\n", block.remainders[idx]);
+    // fprintf(stderr, "remainders[idx] = %llu\n", block.remainders[idx]);
 }
 
 CLASS_HEADER
@@ -660,15 +660,11 @@ METHOD_HEADER::right_shift_remainders(block_t& block, std::size_t start, std::si
 
 CLASS_HEADER
 METHOD_HEADER::const_iterator::const_iterator(rank_select_quotient_filter const* parent, bool start)
-    : parent_filter(parent), idx(0)
+    : parent_filter(parent), idx(0), runend_idx(0)
 {
-    // find good idx
     auto block_idx = 0;
-    if (start and parent_filter->size()) {
-        find_next_run();
-    } else {
-        idx = parent_filter->capacity();
-    }
+    if (start and parent_filter->size()) find_next_run();
+    else idx = parent_filter->capacity();
 }
 
 CLASS_HEADER
@@ -682,9 +678,9 @@ CLASS_HEADER
 typename METHOD_HEADER::const_iterator const&
 METHOD_HEADER::const_iterator::operator++() noexcept
 {
-    ++idx;
-    if (parent_filter->find_runend(idx) <= idx) {
-        find_next_run();
+    if (idx < parent_filter->capacity()) {
+        ++idx;
+        if (idx > runend_idx) find_next_run();
     }
     return *this;
 }
@@ -702,14 +698,22 @@ CLASS_HEADER
 void
 METHOD_HEADER::const_iterator::find_next_run()
 {
-    auto occ_buffer = *parent_filter->block_at(idx).occupieds;
+    auto [block_idx, local_shift] = parent_filter->index_to_block_indexes(idx);
+    auto occ_buffer = *parent_filter->block_at(block_idx).occupieds >> local_shift;
     while (idx < parent_filter->capacity() and not (occ_buffer & static_cast<UnderlyingType>(1))) {
-        occ_buffer >>= 1;
         ++idx;
-        if (idx % parent_filter->remainders_per_block == 0) {
-            occ_buffer = *parent_filter->block_at(idx).occupieds;
+        if (idx < parent_filter->capacity()) {
+            if (idx % parent_filter->remainders_per_block == 0) {
+                std::tie(block_idx, local_shift) =  parent_filter->index_to_block_indexes(idx);
+                assert(local_shift == 0);
+                occ_buffer = *parent_filter->block_at(block_idx).occupieds;
+            } else {
+                occ_buffer >>= 1;
+            }
         }
     }
+    if (idx < parent_filter->capacity()) runend_idx = parent_filter->find_runend(idx);
+    else runend_idx = idx;
 }
 
 #undef METHOD_HEADER

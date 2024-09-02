@@ -82,6 +82,10 @@ class vector
         void clear() noexcept;
         void swap(vector& other) noexcept;
 
+        // void shift(long long shift);
+        // void shift_right(std::size_t shift);
+        // void shift_left(std::size_t shift);
+
         template <class Visitor>
         void visit(Visitor& visitor) const;
 
