@@ -51,6 +51,18 @@ type_name()
 #endif
 }
 
+template <typename T>
+void print_bits(T v) {
+    static_assert(std::is_unsigned<T>::value);
+    for(std::size_t i = 8 * sizeof(T) - 1; i != std::numeric_limits<std::size_t>::max(); --i) putc('0' + ((v >> i) & 1), stderr);
+}
+
+template <typename T>
+void print_bits_reverse(T v) {
+    static_assert(std::is_unsigned<T>::value);
+    for(std::size_t i = 0; i < 8 * sizeof(T); ++i) putc('0' + ((v >> i) & 1), stderr);
+}
+
 } // namespace toolbox
 
 #endif // TOOLBOX_HPP

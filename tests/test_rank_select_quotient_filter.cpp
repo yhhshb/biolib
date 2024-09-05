@@ -1,32 +1,54 @@
 #include <random>
 #include <iostream>
 #include <cassert>
-#include <unordered_set>
+#include <vector>
 #include <argparse/argparse.hpp>
 #include "../include/toolbox.hpp"
 #include "../include/rank_select_quotient_filter.hpp"
 
+void print_qr(std::size_t x, std::size_t remainder_bitwidth)
+{
+    std::cerr << (x >> remainder_bitwidth) << " | " << (x & ((1ULL << remainder_bitwidth) - 1)) << "\n";
+}
+
 template <class QF>
-int test_insertions_and_queries(QF& qf, std::size_t insertions, std::mt19937& generator)
+int test_insertions_and_queries(QF& qf, std::size_t insertions, std::mt19937& generator, bool debug)
 {
     std::uniform_int_distribution<std::size_t> distribution(0, (1ULL << qf.hash_bitwidth()) - 1);
-    std::unordered_set<uint64_t> check;
-    std::cerr << ">>> Insertion\n";
+    std::vector<uint64_t> check;
+    if (debug) std::cerr << ">>> Insertion\n";
     for (std::size_t i = 0; i < insertions; ++i) {
         auto x = distribution(generator);
-        check.insert(x);
+        check.push_back(x);
         qf.insert(x);
-        // assert(qf.contains(x));
+        if (debug) {
+            qf.print_metadata();
+            qf.print_remainders();
+        }
     }
-    std::cerr << ">>> Query\n";
+    if (debug) {
+        std::cerr << ">>> Query\n";
+        // for (auto e : check) print_qr(e, qf.remainder_bitwidth());
+    }
     for (auto x : check) {
         assert(qf.contains(x));
     }
-    std::cerr << ">>> Iterator\n";
+    if (debug) std::cerr << ">>> Iterator\n";
+    std::multiset itr_checker(check.begin(), check.end());
+    std::size_t c = 0;
     for (auto itr = qf.cbegin(); itr != qf.cend(); ++itr) {
-        assert(qf.contains(*itr));
+        auto val = *itr;
+        assert(qf.contains(val));
+        assert(itr_checker.count(val) > 0);
+        itr_checker.erase(val);
+        ++c;
     }
-    std::cerr << ">>> Deletion\n";
+    if (itr_checker.size()) {
+        std::cerr << "qf.size() = " << qf.size() << ", seen " << c << " elements, remaining " << itr_checker.size() << ":\n";
+        for (auto e : itr_checker) print_qr(e, qf.remainder_bitwidth());
+    }
+    assert(itr_checker.empty());
+    if (debug) std::cerr << ">>> Deletion\n";
     for (auto x : check) {
         qf.erase(x);
     }
@@ -49,11 +71,11 @@ int test_qf(uint64_t seed, uint8_t hash_bit_size, uint8_t remainder_bit_size)
     std::cerr << "\twith r = " << static_cast<std::size_t>(remainder_bit_size) << "\n";
     std::cerr << "\thash bit width = " << static_cast<std::size_t>(hash_bit_size) << "\n";
     std::cerr << "\tcapacity = " << qf.capacity() << "\n";
-    for (std::size_t i = 1; i < 2; ++i) {//i < std::log10(10 * qf.capacity()); ++i) {
-        auto nins = std::pow(10, i);
-        std::cerr << "Checking filter for " << nins << " insertions\n";
-        test_insertions_and_queries(qf, static_cast<std::size_t>(nins), gen);
-    }
+    test_insertions_and_queries(qf, static_cast<std::size_t>(qf.capacity() / 2), gen, false);
+    qf.clear();
+    test_insertions_and_queries(qf, static_cast<std::size_t>(qf.max_load_factor() * qf.capacity() * 0.9), gen, false);
+    qf.clear();
+    test_insertions_and_queries(qf, static_cast<std::size_t>(qf.capacity() * qf.max_load_factor() * 2), gen, false);
     qf.clear();
     assert(not qf.size());
     std::cerr << "DONE!\n";
@@ -90,7 +112,11 @@ int main(int argc, char* argv[])
     auto deletions = parser.get<uint64_t>("--deletions");
     auto seed = parser.get<uint64_t>("--seed");
     
-    test_qf_combinations<uint32_t>(seed);    
+    // test_qf_combinations<uint32_t>(seed);
+    // test_qf<uint32_t>(seed, 32, 32);
+    // test_qf<uint32_t>(seed, 32, 31);
+    test_qf<uint32_t>(seed, 32, 27);
+    // test_qf<uint32_t>(seed, 32, 25);
 
     std::cerr << "Everything is OK\n";
     return 0;
