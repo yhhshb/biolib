@@ -7,6 +7,7 @@
 #ifndef EXTERNAL_MEMORY_VECTOR
 #define EXTERNAL_MEMORY_VECTOR
 
+#include <algorithm>
 #include <functional>
 #include <vector>
 #include <string>

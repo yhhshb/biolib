@@ -2,6 +2,8 @@
 #define IO_HPP
 
 #include <string>
+#include <cstring>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <fstream>
