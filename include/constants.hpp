@@ -2,6 +2,7 @@
 #define CONSTANTS_HPP
 
 #include <array>
+#include <cstdint>
 #include <type_traits>
 
 namespace constants {
