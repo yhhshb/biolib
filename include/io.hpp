@@ -1,11 +1,10 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include <cstdint>
 #include <fstream>
 #include <cstring> // memcpy
 #include <string>
-#include <cstring>
-#include <cstdint>
 #include <vector>
 #include <utility> // std::pair
 #include <tuple> // TODO with variadic templates

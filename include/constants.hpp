@@ -1,9 +1,9 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-#include <array>
 #include <cstdint>
 #include <type_traits>
+#include <array>
 
 namespace constants {
 
