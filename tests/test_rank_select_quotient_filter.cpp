@@ -16,7 +16,7 @@ int test_insertions_and_queries(QF& qf, std::size_t insertions, std::mt19937& ge
 {
     std::uniform_int_distribution<std::size_t> distribution(0, (1ULL << qf.hash_bitwidth()) - 1);
     std::vector<uint64_t> check;
-    if (debug) std::cerr << ">>> Insertion\n";
+    std::cerr << ">>> Insertion\n";
     for (std::size_t i = 0; i < insertions; ++i) {
         auto x = distribution(generator);
         check.push_back(x);
@@ -26,14 +26,12 @@ int test_insertions_and_queries(QF& qf, std::size_t insertions, std::mt19937& ge
             qf.print_remainders();
         }
     }
-    if (debug) {
-        std::cerr << ">>> Query\n";
-        // for (auto e : check) print_qr(e, qf.remainder_bitwidth());
-    }
+    std::cerr << ">>> Query\n";
+    if (debug) for (auto e : check) print_qr(e, qf.remainder_bitwidth());
     for (auto x : check) {
         assert(qf.contains(x));
     }
-    if (debug) std::cerr << ">>> Iterator\n";
+    std::cerr << ">>> Iterator\n";
     std::multiset itr_checker(check.begin(), check.end());
     std::size_t c = 0;
     for (auto itr = qf.cbegin(); itr != qf.cend(); ++itr) {
@@ -48,7 +46,7 @@ int test_insertions_and_queries(QF& qf, std::size_t insertions, std::mt19937& ge
         for (auto e : itr_checker) print_qr(e, qf.remainder_bitwidth());
     }
     assert(itr_checker.empty());
-    if (debug) std::cerr << ">>> Deletion\n";
+    std::cerr << ">>> Deletion\n";
     for (auto x : check) {
         qf.erase(x);
     }
@@ -75,7 +73,7 @@ int test_qf(uint64_t seed, uint8_t hash_bit_size, uint8_t remainder_bit_size)
     qf.clear();
     test_insertions_and_queries(qf, static_cast<std::size_t>(qf.max_load_factor() * qf.capacity() * 0.9), gen, false);
     qf.clear();
-    test_insertions_and_queries(qf, static_cast<std::size_t>(qf.capacity() * qf.max_load_factor() * 2), gen, false);
+    test_insertions_and_queries(qf, static_cast<std::size_t>(qf.capacity() * qf.max_load_factor() * 2), gen, true);
     qf.clear();
     assert(not qf.size());
     std::cerr << "DONE!\n";

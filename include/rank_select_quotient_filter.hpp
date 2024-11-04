@@ -293,28 +293,29 @@ void
 METHOD_HEADER::insert(key_type const& hval)
 {
     auto find_first_unused_slot = [this](std::size_t idx) {
-        // fprintf(stderr, "**[find first unused slot]**\n");
+        auto starting_idx = idx;
         auto s = find_runend(idx);
         while (idx != s) {
             idx = s; // + 1
             s = find_runend(idx);
+            fprintf(stderr, "[ffus loop] idx: %llu, s: %llu\n", idx, s);
+            if (idx == starting_idx) throw std::runtime_error("[find_first_unused_slot] infinite loop");
         }
-        // fprintf(stderr, "********************\n");
         return idx;
     };
 
-    // fprintf(stderr, "-------------------------------------------------------\n");
+    fprintf(stderr, "-------------------------------------------------------\n");
     if (static_cast<float>(m_size + 1) / capacity() > max_load_factor()) {
         fprintf(stderr, "REHASHING\n");
         rehash(2 * capacity());
     }
     auto [q, rem] = get_quotient_and_remainder(hval);
     auto s = find_runend(q);
-    // fprintf(stderr, "inserting %llu in position %llu\n", rem, q);
-    // fprintf(stderr, "runend of q(%llu) is %llu\n", q, s);
+    fprintf(stderr, "inserting %llu in position %llu\n", rem, q);
+    fprintf(stderr, "runend of q(%llu) is %llu\n", q, s);
     if (s != q) {
         auto n = find_first_unused_slot(s);
-        // fprintf(stderr, "collision, first unused slot from %llu is %llu\n", s, n);
+        fprintf(stderr, "collision, first unused slot from %llu is %llu\n", s, n);
         assert(n < capacity());
         assert(not get_occupieds_at(n));
         assert(not get_runends_at(n));
@@ -340,14 +341,14 @@ METHOD_HEADER::insert(key_type const& hval)
             clear_runends_at(s); // this is here since we have to update occupieds at position q anyway so we always incur in a cache miss
         }
     } else { // slot is free (select1 not defined is a corner-case when the block is empty)
-        // fprintf(stderr, "no collisions, inserting r = %llu in q = %llu\n", rem, q);
+        fprintf(stderr, "no collisions, inserting r = %llu in q = %llu\n", rem, q);
         insert_in_empty_slot(q, rem);
         set_runends_at(q);
         // No update necessary because distance of cell from its runend is always 0 (they are at the same indexes)
     }
     set_occupieds_at(q);
     ++m_size;
-    // fprintf(stderr, "*******************************************************\n");
+    fprintf(stderr, "*******************************************************\n");
 }
 
 CLASS_HEADER
@@ -510,7 +511,7 @@ METHOD_HEADER::right_shift_slots_between(std::size_t start, std::size_t stop, st
         if (carry_runend) set_runends_at(start);
         carry_runend = ncarry;
         remainder = right_shift_remainders(block, start_local_idx, stop_local_idx, remainder);
-        if (*block.offset >= start_local_idx) ++(*block.offset);
+        if (start_local_idx <= *block.offset and *block.offset <= stop_local_idx) ++(*block.offset);
     }
     return {remainder, carry_runend};
 }
@@ -526,27 +527,27 @@ METHOD_HEADER::find_runend(std::size_t idx) const
     // fprintf(stderr, "block.occupieds = %llu\n", *block.occupieds);
     auto local_rank = bit::rank1(static_cast<uint64_t>(*block.occupieds), local_idx);
     auto select_idx_start = (idx - local_idx + *block.offset); // go to the first index in the block and add its (sampled) offset
-    // fprintf(stderr, "idx = %llu, block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, local_rank = %llu, select_idx_start = %llu\n", 
-    //     idx, 
-    //     block_idx,
-    //     local_idx,
-    //     *block.offset, 
-    //     local_rank, 
-    //     select_idx_start
-    // );
+    fprintf(stderr, "idx = %llu, block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, local_rank = %llu, select_idx_start = %llu\n", 
+        idx, 
+        block_idx,
+        local_idx,
+        *block.offset, 
+        local_rank, 
+        select_idx_start
+    );
 
     // find the local_rank-th set bit in runends from position select_idx_start
     std::tie(block_idx, local_idx) = index_to_block_indexes(select_idx_start % cap);
     auto bitr = block_at(block_idx);
     auto select_query = *bitr.runends >> local_idx;
     auto pcnt = bit::popcount(select_query);
-    // fprintf(stderr, "block from which to start to select = %llu, local_idx = %llu, runends = %llu, popcount(%llu) = %u\n", 
-    //     block_idx,
-    //     local_idx,
-    //     *bitr.runends,
-    //     select_query, 
-    //     pcnt
-    // );
+    fprintf(stderr, "block from which to start to select = %llu, local_idx = %llu, runends = %llu, popcount(%llu) = %u\n", 
+        block_idx,
+        local_idx,
+        *bitr.runends,
+        select_query, 
+        pcnt
+    );
     while (pcnt < local_rank) { // shift blocks and add their rank until we find block we want
         local_rank -= pcnt;
         select_idx_start += remainders_per_block - local_idx;
@@ -555,22 +556,22 @@ METHOD_HEADER::find_runend(std::size_t idx) const
         select_query = *bitr.runends >> local_idx;
         pcnt = bit::popcount(select_query);
     }
-    // fprintf(stderr, "idx = %llu, final block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, final local_rank = %llu, select_idx_start = %llu, select_query = %llu\n", 
-    //     idx, 
-    //     block_idx,
-    //     local_idx,
-    //     *block.offset, 
-    //     local_rank, 
-    //     select_idx_start,
-    //     select_query
-    // );
+    fprintf(stderr, "idx = %llu, final block_idx = %llu, local_idx (inside block) = %llu, block_offset = %u, final local_rank = %llu, select_idx_start = %llu, select_query = %llu\n", 
+        idx, 
+        block_idx,
+        local_idx,
+        *block.offset, 
+        local_rank, 
+        select_idx_start,
+        select_query
+    );
     std::size_t res = idx;
     if (local_rank) {
         res = select_idx_start + bit::select1(select_query, local_rank - 1);
         if (res < idx) res = idx;
         else res = (res + 1) % cap;
     }
-    // fprintf(stderr, "runend(%llu) = %llu\n", idx, res);
+    fprintf(stderr, "runend(%llu) = %llu\n", idx, res);
     return res;
 }
 
