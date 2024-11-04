@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cstring> // memcpy
 #include <string>
+#include <cstring>
+#include <cstdint>
 #include <vector>
 #include <utility> // std::pair
 #include <tuple> // TODO with variadic templates
