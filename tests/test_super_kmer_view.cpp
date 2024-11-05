@@ -4,7 +4,7 @@
 
 #include <zlib.h>
 extern "C" {
-    #include "../include/kseq.h"
+    #include "kseq.h"
 }
 
 #include <string>
