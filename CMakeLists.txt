@@ -45,7 +45,8 @@ target_link_libraries(asan_flags INTERFACE
   $<$<BOOL:${BIOLIB_USE_SANITIZERS}>:-fsanitize=address -fno-omit-frame-pointer>
 )
 
-file(GLOB_RECURSE BUNDLED_SOURCES "${CMAKE_SOURCE_DIR}/bundled/*.cpp")
+# file(GLOB_RECURSE BUNDLED_SOURCES "${CMAKE_SOURCE_DIR}/bundled/*.cpp")
+file(GLOB_RECURSE BUNDLED_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/bundled/*.cpp")
 
 add_subdirectory(src)
 
