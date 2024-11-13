@@ -92,7 +92,18 @@ void check_rs(size_t seed, size_t vector_size, size_t insertions)
     // }
     // std::cerr << "\n";
 
+    bit::rs::array<decltype(bvec), bbs, sbbs, with_select1_hints, with_select0_hints> dummy(std::move(bvec));
+    bvec.clear();
     bit::rs::array<decltype(bvec), bbs, sbbs, with_select1_hints, with_select0_hints> rs_vec(std::move(bvec));
+    {
+        std::string sname = "tmp.bin";
+        // auto copy = rs_vec;
+        io::store(dummy, sname);
+        rs_vec = io::load<decltype(rs_vec)>(sname);
+        assert(dummy == rs_vec);
+    }
+
+    // bit::rs::array<decltype(bvec), bbs, sbbs, with_select1_hints, with_select0_hints> rs_vec(std::move(bvec));
 
     if (rs_vec.size1() != inserted.size()) {
         // std::cerr << rs_vec.size1() << " != " << inserted.size() << "\n";
@@ -130,14 +141,6 @@ void check_rs(size_t seed, size_t vector_size, size_t insertions)
         for (std::size_t i = 0; i < inserted.size(); ++i) {
             if (i != inserted.at(i)) throw std::runtime_error("[select0] duplicated elements");
         }
-    }
-
-    {
-        std::string sname = "tmp.bin";
-        auto copy = rs_vec;
-        io::store(rs_vec, sname);
-        rs_vec = io::load<decltype(rs_vec)>(sname);
-        assert(copy == rs_vec);
     }
 
     std::cerr << "rank/select size = " << rs_vec.bit_size() << "\n";

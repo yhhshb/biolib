@@ -286,8 +286,7 @@ array
 array::load(Loader& visitor)
 {
     array r;
-    r.msbrs = decltype(r.msbrs)::load(visitor);
-    r.lsb = decltype(r.lsb)::load(visitor);
+    r.visit(visitor);
     return r;
 }
 

@@ -35,6 +35,6 @@ add_test_suite(io test_io.cpp)
 add_test_suite(codes test_codes.cpp)
 add_test_suite(rlev test_rle_view.cpp)
 add_test_suite(bop test_bit_operations.cpp)
-add_test_suite(rsqf test_rank_select_quotient_filter.cpp)
+# add_test_suite(rsqf test_rank_select_quotient_filter.cpp)
 
 

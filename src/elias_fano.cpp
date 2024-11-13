@@ -1,4 +1,5 @@
 #include "../include/elias_fano.hpp"
+#include <iostream>
 
 namespace bit {
 namespace ef {
@@ -167,7 +168,8 @@ bool operator==(array const& a, array const& b)
 {
     bool same_msb = a.msbrs == b.msbrs;
     bool same_lsb = a.lsb == b.lsb;
-    return same_msb and same_lsb;
+    bool same_size = a._size == b._size;
+    return same_msb and same_lsb and same_size;
 }
 
 bool operator!=(array const& a, array const& b) 
