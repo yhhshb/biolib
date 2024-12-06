@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
         for (uint64_t i = n-1; i < std::numeric_limits<uint64_t>::max(); --i) {
             sorted_vec.push_back(i);
         }
-
+        sorted_vec.minimize();
         auto itr = sorted_vec.cbegin();
         for (uint64_t i = 0; i < n; ++i) {
             auto val = *itr;
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
         for (uint64_t i = n-1; i < std::numeric_limits<uint64_t>::max(); --i) {
             sorted_vec.push_back(i);
         }
-
+        sorted_vec.minimize();
         auto itr = sorted_vec.cbegin();
         for (uint64_t i = 0; i < n; ++i) {
             auto val = *itr;
@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
                 sorted_vec.push_back(pair);
             }
         }
+        // sorted_vec.minimize();
         std::cerr << "\nSorted pairs:\n" ;
         for (auto itr = sorted_vec.cbegin(); itr != sorted_vec.cend(); ++itr) {
             std::cerr << *itr << "\n";

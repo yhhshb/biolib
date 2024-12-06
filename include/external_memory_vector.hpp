@@ -40,8 +40,8 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
                 using pointer           = value_type*;
                 using reference         = value_type&;
                 
-                const_iterator();
                 const_iterator(external_memory_vector<T, sorted> const* vec);
+                const_iterator(external_memory_vector<T, sorted> const* vec, int);
                 T const& operator*() const;
                 const_iterator const& operator++();
                 bool operator==(const_iterator const& other) const;
@@ -120,6 +120,7 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
         const_iterator cbegin() const;
         const_iterator cend() const;
         std::size_t size() const;
+        void minimize();
         ~external_memory_vector();
 
     private:
@@ -188,7 +189,10 @@ external_memory_vector<T, sorted>::push_back(T const& elem)
     m_buffer.reserve(m_buffer_size); // does nothing if enough space
     m_buffer.push_back(elem);
     ++m_total_elems;
-    if (m_buffer.size() >= m_buffer_size) sort_and_flush();
+    if (m_buffer.size() >= m_buffer_size) {
+        sort_and_flush();
+        m_buffer.clear();
+    }
 }
 
 template <typename T, bool sorted>
@@ -196,9 +200,9 @@ typename external_memory_vector<T, sorted>::const_iterator
 external_memory_vector<T, sorted>::cbegin() const
 {
     external_memory_vector<T, sorted>& me = const_cast<external_memory_vector<T, sorted>&>(*this);
-    if (m_buffer.size() != 0) me.sort_and_flush();
-    me.m_buffer.clear();
-    me.m_buffer.shrink_to_fit();
+    me.minimize();
+    // TODO: when creating an iterator do not call minimize(), just write the file instead.
+    // That way we can keep adding elements to the same buffer and then update the last file
     return const_iterator(this);
 }
 
@@ -206,7 +210,7 @@ template <typename T, bool sorted>
 typename external_memory_vector<T, sorted>::const_iterator 
 external_memory_vector<T, sorted>::cend() const 
 {
-    return const_iterator();
+    return const_iterator(this, 0);
 }
 
 template <typename T, bool sorted>
@@ -214,6 +218,19 @@ std::size_t
 external_memory_vector<T, sorted>::size() const 
 {
     return m_total_elems;
+}
+
+/** 
+ * Flushes and deallocate internal memory for minimal RAM footprint.
+ */
+template <typename T, bool sorted>
+void 
+external_memory_vector<T, sorted>::minimize()
+{
+    if (m_buffer.size() != 0) sort_and_flush();
+    m_buffer.clear();
+    m_buffer.shrink_to_fit();
+    assert(m_buffer.capacity() == 0);
 }
 
 template <typename T, bool sorted>
@@ -231,7 +248,6 @@ external_memory_vector<T, sorted>::sort_and_flush()
     std::ofstream out(m_tmp_files.back().c_str(), std::ofstream::binary);
     // out.write(reinterpret_cast<char const*>(m_buffer.data()), m_buffer.size() * sizeof(T)); // old C-like version unable to deal with VL structures
     for (auto& elem : m_buffer) io::basic_store(elem, out); // use custom overloads (see io.hpp for list of supported types)
-    m_buffer.clear();
 }
 
 template <typename T, bool sorted>
@@ -264,8 +280,8 @@ external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memor
 }
 
 template <typename T, bool sorted>
-external_memory_vector<T, sorted>::const_iterator::const_iterator()
-    : v(nullptr),
+external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memory_vector<T, sorted> const* vec, [[maybe_unused]]int dummy)
+    : v(vec),
     heap_idx_comparator([]([[maybe_unused]] uint32_t i, [[maybe_unused]] uint32_t j) {return false;})
 {}
 
@@ -289,7 +305,9 @@ template <typename T, bool sorted>
 bool 
 external_memory_vector<T, sorted>::const_iterator::operator==(const_iterator const& other) const 
 {
-    return m_idx_heap.size() == other.m_idx_heap.size();  // TODO make it a little bit stronger
+    bool same_vector = v == other.v;
+    bool same_idx = m_idx_heap.size() == other.m_idx_heap.size();
+    return same_vector and same_idx;  // TODO make it a little bit stronger
 }
 
 template <typename T, bool sorted>
