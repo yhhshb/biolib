@@ -10,8 +10,6 @@
 #include <chrono>
 #include <cassert>
 
-// #include <iostream>
-
 namespace logging_tools {
 
 template <typename T>
@@ -39,6 +37,9 @@ class libra
         template <typename T>
         void visit(T const& var) noexcept;
 
+        template <typename T1, typename T2>
+        void visit(std::pair<T1, T2> const& pair) noexcept;
+
         template <typename T, class Allocator>
         void visit(std::vector<T, Allocator> const& vec) noexcept;
 
@@ -62,17 +63,19 @@ void libra::visit(T const& var) noexcept
     }
 }
 
+template <typename T1, typename T2>
+void libra::visit(std::pair<T1, T2> const& pair) noexcept
+{
+    visit(pair.first);
+    visit(pair.second);
+}
+
 template <typename T, typename Allocator>
 void libra::visit(std::vector<T, Allocator> const& vec) noexcept
 {
-    // if constexpr (std::is_fundamental<T>::value) {
-    //     auto nr = basic_size_measure(vec);
-    //     acc += nr;
-    // } else {
-        auto n = vec.size();
-        visit(n);
-        for (auto const& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
-    // }
+    auto n = vec.size();
+    visit(n);
+    for (auto const& v : vec) visit(v); // Call visit(), not load() since we want to recursively count the number of bytes
 }
 
 template <class ClockType, typename MeasurementType>

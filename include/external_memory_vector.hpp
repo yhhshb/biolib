@@ -13,6 +13,7 @@
 #include <sstream>
 #include "io.hpp"
 #include "memory_mapped_file.hpp"
+#include "logtools.hpp"
 
 namespace emem {
 
@@ -124,13 +125,16 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
         ~external_memory_vector();
 
     private:
-        void init(uint64_t available_space_bytes);
-        std::size_t m_buffer_size;
+        std::size_t m_available_space_bytes;
         std::size_t m_total_elems;
         std::string m_tmp_dirname;
         std::string m_prefix;
         std::vector<std::string> m_tmp_files;
         std::vector<T> m_buffer;
+        logging_tools::libra scale;
+
+        // std::size_t m_buffer_size; not used anymore
+        // void init(uint64_t available_space_bytes);
         void sort_and_flush();
         std::string get_tmp_output_filename(uint64_t id) const;
 };
@@ -139,12 +143,16 @@ template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
     typename std::enable_if<s, uint64_t>::type available_space_bytes,
-    std::function<bool(T const&, T const&)> cmp, std::string tmp_dir, std::string name
-) : sorted_base<T>(cmp), m_total_elems(0)
+    std::function<bool(T const&, T const&)> cmp, 
+    std::string tmp_dir, 
+    std::string name
+) : sorted_base<T>(cmp)
+  , m_available_space_bytes(available_space_bytes)
+  , m_total_elems(0)
   , m_tmp_dirname(tmp_dir)
   , m_prefix(name) 
 {
-    init(available_space_bytes);
+    // init(available_space_bytes);
 }
 
 template <typename T, bool sorted>
@@ -154,24 +162,29 @@ external_memory_vector<T, sorted>::external_memory_vector(
     std::string tmp_dir, 
     std::string name
 ) : sorted_base<T>([](T const& a, T const& b) { return a < b; })
+  , m_available_space_bytes(available_space_bytes)
   , m_total_elems(0)
   , m_tmp_dirname(tmp_dir)
   , m_prefix(name) 
 {
-    init(available_space_bytes);
+    // init(available_space_bytes);
 }
 
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<!s, uint64_t>::type available_space_bytes, 
+    typename std::enable_if<!s, uint64_t>::type available_space_bytes, // unsorted case, the base class is an empty struct
     std::string tmp_dir, 
     std::string name)
-    : m_total_elems(0), m_tmp_dirname(tmp_dir), m_prefix(name) 
+    : m_available_space_bytes(available_space_bytes)
+    , m_total_elems(0)
+    , m_tmp_dirname(tmp_dir)
+    , m_prefix(name) 
 {
-    init(available_space_bytes);
+    // init(available_space_bytes);
 }
 
+/*
 template <typename T, bool sorted>
 void 
 external_memory_vector<T, sorted>::init(uint64_t available_space_bytes) 
@@ -180,18 +193,22 @@ external_memory_vector<T, sorted>::init(uint64_t available_space_bytes)
     m_buffer_size = available_space_bytes / sizeof(T) + 1;
     m_buffer.reserve(m_buffer_size);
 }
+*/
 
 template <typename T, bool sorted>
 void 
 external_memory_vector<T, sorted>::push_back(T const& elem) 
 {
     // for optimal memory management in the general case one should try to reload the last tmp file if it isn't full
-    m_buffer.reserve(m_buffer_size); // does nothing if enough space
+    // m_buffer.reserve(m_buffer_size); // does nothing if enough space
     m_buffer.push_back(elem);
     ++m_total_elems;
-    if (m_buffer.size() >= m_buffer_size) {
+    scale.visit(elem);
+    // if (m_buffer.size() >= m_buffer_size) {
+    if (scale.get_byte_size() >= m_available_space_bytes) {
         sort_and_flush();
         m_buffer.clear();
+        scale.reset();
     }
 }
 

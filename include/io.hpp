@@ -15,9 +15,9 @@ namespace io {
  * General-purpose load functions
  * Supported types:
  * - all simple C types (NO ARRAYS)
+ * - std::pair
  * - std::vector
  * - std::string
- * - std::pair
  * 
  * Add specializations for other types
  */
