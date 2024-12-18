@@ -31,7 +31,7 @@ class size_iterator
         size_iterator operator++(int) 
         {
             auto current = *this; 
-            ++itr; 
+            operator++();
             return current;
         }
 

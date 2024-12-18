@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "../include/elias_fano.hpp"
-#include "../include/cumulative_iterator.hpp"
+#include "../include/iterator/cumulative_iterator.hpp"
 #include "../include/io.hpp"
 
 std::vector<std::size_t> get_random_sequence(std::mt19937& gen, std::size_t size, std::size_t delta);

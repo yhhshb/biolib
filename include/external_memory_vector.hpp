@@ -26,6 +26,13 @@ struct sorted_base {
 template <typename T>
 struct unsorted_base {};
 
+/**
+ * Vector-like container off-loading elements to disk if necessary.
+ * 
+ * Its const_iterator is basically a combination of 
+ * sorted_merge_iterator + disk_vector_iterator
+ * but this is kept as a stand-alone implementation.
+ */
 template <typename T, bool sorted = true>
 class external_memory_vector : public std::conditional<sorted, sorted_base<T>, unsorted_base<T>>::type 
 {
@@ -99,20 +106,20 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
 
         template <bool s = sorted>
         external_memory_vector(
-            typename std::enable_if<s, uint64_t>::type available_space_bytes, 
+            typename std::enable_if<s, std::size_t>::type available_space_bytes, 
             std::function<bool(T const&, T const&)> cmp, 
             std::string tmp_dir, 
             std::string name = "");
         
         template <bool s = sorted>
         external_memory_vector(
-            typename std::enable_if<s, uint64_t>::type available_space_bytes, 
+            typename std::enable_if<s, std::size_t>::type available_space_bytes, 
             std::string tmp_dir, 
             std::string name = "");
         
         template <bool s = sorted>
         external_memory_vector(
-            typename std::enable_if<!s, uint64_t>::type available_space_bytes, 
+            typename std::enable_if<!s, std::size_t>::type available_space_bytes, 
             std::string tmp_dir, 
             std::string name = "");
 
@@ -133,16 +140,14 @@ class external_memory_vector : public std::conditional<sorted, sorted_base<T>, u
         std::vector<T> m_buffer;
         logging_tools::libra scale;
 
-        // std::size_t m_buffer_size; not used anymore
-        // void init(uint64_t available_space_bytes);
         void sort_and_flush();
-        std::string get_tmp_output_filename(uint64_t id) const;
+        std::string get_tmp_output_filename(std::size_t id) const;
 };
 
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<s, uint64_t>::type available_space_bytes,
+    typename std::enable_if<s, std::size_t>::type available_space_bytes,
     std::function<bool(T const&, T const&)> cmp, 
     std::string tmp_dir, 
     std::string name
@@ -158,7 +163,7 @@ external_memory_vector<T, sorted>::external_memory_vector(
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<s, uint64_t>::type available_space_bytes, 
+    typename std::enable_if<s, std::size_t>::type available_space_bytes, 
     std::string tmp_dir, 
     std::string name
 ) : sorted_base<T>([](T const& a, T const& b) { return a < b; })
@@ -173,7 +178,7 @@ external_memory_vector<T, sorted>::external_memory_vector(
 template <typename T, bool sorted>
 template <bool s>
 external_memory_vector<T, sorted>::external_memory_vector(
-    typename std::enable_if<!s, uint64_t>::type available_space_bytes, // unsorted case, the base class is an empty struct
+    typename std::enable_if<!s, std::size_t>::type available_space_bytes, // unsorted case, the base class is an empty struct
     std::string tmp_dir, 
     std::string name)
     : m_available_space_bytes(available_space_bytes)
@@ -184,27 +189,14 @@ external_memory_vector<T, sorted>::external_memory_vector(
     // init(available_space_bytes);
 }
 
-/*
-template <typename T, bool sorted>
-void 
-external_memory_vector<T, sorted>::init(uint64_t available_space_bytes) 
-{
-    if (available_space_bytes / sizeof(T) == 0) throw std::runtime_error("[EMV] Insufficient memory");
-    m_buffer_size = available_space_bytes / sizeof(T) + 1;
-    m_buffer.reserve(m_buffer_size);
-}
-*/
-
 template <typename T, bool sorted>
 void 
 external_memory_vector<T, sorted>::push_back(T const& elem) 
 {
     // for optimal memory management in the general case one should try to reload the last tmp file if it isn't full
-    // m_buffer.reserve(m_buffer_size); // does nothing if enough space
     m_buffer.push_back(elem);
     ++m_total_elems;
     scale.visit(elem);
-    // if (m_buffer.size() >= m_buffer_size) {
     if (scale.get_byte_size() >= m_available_space_bytes) {
         sort_and_flush();
         m_buffer.clear();
@@ -263,13 +255,12 @@ external_memory_vector<T, sorted>::sort_and_flush()
     if constexpr (sorted) std::sort(m_buffer.begin(), m_buffer.end(), sorted_base<T>::m_sorter);
     m_tmp_files.push_back(get_tmp_output_filename(m_tmp_files.size()));
     std::ofstream out(m_tmp_files.back().c_str(), std::ofstream::binary);
-    // out.write(reinterpret_cast<char const*>(m_buffer.data()), m_buffer.size() * sizeof(T)); // old C-like version unable to deal with VL structures
     for (auto& elem : m_buffer) io::basic_store(elem, out); // use custom overloads (see io.hpp for list of supported types)
 }
 
 template <typename T, bool sorted>
 std::string 
-external_memory_vector<T, sorted>::get_tmp_output_filename(uint64_t id) const 
+external_memory_vector<T, sorted>::get_tmp_output_filename(std::size_t id) const 
 {
     std::stringstream filename;
     filename << m_tmp_dirname << "/tmp.run";
@@ -281,13 +272,13 @@ external_memory_vector<T, sorted>::get_tmp_output_filename(uint64_t id) const
 template <typename T, bool sorted>
 external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memory_vector<T, sorted> const* vec)
     : v(vec)
-    , heap_idx_comparator([this](uint32_t i, uint32_t j) { return (m_parsers[i].parse() > m_parsers[j].parse()); }) 
+    , heap_idx_comparator( [this](uint32_t i, uint32_t j) { return (m_parsers.at(i).parse() > m_parsers.at(j).parse());} ) 
 {
     m_parsers.reserve(v->m_tmp_files.size());
     m_idx_heap.reserve(v->m_tmp_files.size());
     m_mm_files.reserve(v->m_tmp_files.size());
     /* create the input iterators and make the heap */
-    for (uint64_t i = 0; i != v->m_tmp_files.size(); ++i) {
+    for (std::size_t i = 0; i != v->m_tmp_files.size(); ++i) {
         m_mm_files.emplace_back(v->m_tmp_files.at(i), memory::map::advice::sequential);
         m_parsers.emplace_back(m_mm_files[i].data(), m_mm_files[i].data() + m_mm_files[i].size());
         m_idx_heap.push_back(i);
@@ -299,15 +290,15 @@ external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memor
 template <typename T, bool sorted>
 external_memory_vector<T, sorted>::const_iterator::const_iterator(external_memory_vector<T, sorted> const* vec, [[maybe_unused]]int dummy)
     : v(vec),
-    heap_idx_comparator([]([[maybe_unused]] uint32_t i, [[maybe_unused]] uint32_t j) {return false;})
+    heap_idx_comparator( []([[maybe_unused]] uint32_t i, [[maybe_unused]] uint32_t j) {return false;} )
 {}
 
 template <typename T, bool sorted>
 T const& 
 external_memory_vector<T, sorted>::const_iterator::operator*() const 
 {
-    if constexpr (sorted) return m_parsers[m_idx_heap.front()].parse();
-    else return m_parsers[m_idx_heap.back()].parse();
+    if constexpr (sorted) return m_parsers.at(m_idx_heap.front()).parse();
+    else return m_parsers.at(m_idx_heap.back()).parse();
 }
 
 template <typename T, bool sorted>
@@ -341,14 +332,14 @@ external_memory_vector<T, sorted>::const_iterator::advance_heap_head()
 {
     uint32_t idx = m_idx_heap.front();
     m_parsers[idx].advance();
-    if (m_parsers[idx].has_next()) {  // percolate down the head
-        uint64_t pos = 0;
-        uint64_t size = m_idx_heap.size();
+    if (m_parsers.at(idx).has_next()) {  // percolate down the head
+        std::size_t pos = 0;
+        std::size_t size = m_idx_heap.size();
         while (2 * pos + 1 < size) {
-            uint64_t i = 2 * pos + 1;
-            if (i + 1 < size and heap_idx_comparator(m_idx_heap[i], m_idx_heap[i + 1])) ++i;
-            if (heap_idx_comparator(m_idx_heap[i], m_idx_heap[pos])) break;
-            std::swap(m_idx_heap[pos], m_idx_heap[i]);
+            std::size_t i = 2 * pos + 1;
+            if (i + 1 < size and heap_idx_comparator(m_idx_heap.at(i), m_idx_heap.at(i + 1))) ++i;
+            if (heap_idx_comparator(m_idx_heap.at(i), m_idx_heap.at(pos))) break;
+            std::swap(m_idx_heap.at(pos), m_idx_heap.at(i));
             pos = i;
         }
     } else {
@@ -364,9 +355,20 @@ external_memory_vector<T, sorted>::const_iterator::advance_heap_head()
 {
     uint32_t idx = m_idx_heap.back();  // we reversed the array when !sorted
     m_parsers[idx].advance();
-    if (m_parsers[idx].has_next()) {}  // do nothing since next time the index will be still valid
+    if (m_parsers.at(idx).has_next()) {}  // do nothing since next time the index will be still valid
     else m_idx_heap.pop_back();
 }
+
+/*
+template <typename T, bool sorted>
+void 
+external_memory_vector<T, sorted>::init(std::size_t available_space_bytes) 
+{
+    if (available_space_bytes / sizeof(T) == 0) throw std::runtime_error("[EMV] Insufficient memory");
+    m_buffer_size = available_space_bytes / sizeof(T) + 1;
+    m_buffer.reserve(m_buffer_size);
+}
+*/
 
 }  // namespace emem
 
