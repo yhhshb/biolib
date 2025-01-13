@@ -32,7 +32,7 @@ namespace io {
 
 loader::loader(std::istream& strm) : istrm(strm) //, num_bytes_pods(0), num_bytes_vecs_of_pods(0)
 {
-    if (!istrm.good()) throw std::runtime_error("[Loader] Unreadable input stream");
+    if (!istrm.good()) throw std::runtime_error("[Loader] Unable to read input stream");
 }
 
 void loader::visit(std::string& s)
@@ -44,7 +44,7 @@ void loader::visit(std::string& s)
 
 saver::saver(std::ostream& output_stream) : ostrm(output_stream) //, num_bytes_pods(0), num_bytes_vecs_of_pods(0)
 {
-    if (!ostrm.good()) throw std::runtime_error("[Saver] Unreadable input stream");
+    if (!ostrm.good()) throw std::runtime_error("[Saver] Unable to write on output stream");
 }
 
 void saver::visit(std::string const& s) 
@@ -56,7 +56,7 @@ void saver::visit(std::string const& s)
 
 mut_saver::mut_saver(std::ostream& output_stream) : saver(output_stream)
 {
-    if (!ostrm.good()) throw std::runtime_error("[Saver] Unreadable input stream");
+    if (!ostrm.good()) throw std::runtime_error("[Saver] Unable to write on output stream");
 }
 
 void mut_saver::visit(std::string& s) 
