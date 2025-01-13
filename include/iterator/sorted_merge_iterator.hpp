@@ -19,7 +19,7 @@ class sorted_merge_iterator
         using reference         = value_type&;
         
         sorted_merge_iterator();
-        sorted_merge_iterator(std::vector<standalone_iterator<SortedIterator>>& begin_end);
+        sorted_merge_iterator(std::vector<standalone_iterator<SortedIterator>> begin_end);
         value_type operator*() const;
         sorted_merge_iterator const& operator++();
         bool operator==(sorted_merge_iterator const& other) const;
@@ -41,13 +41,13 @@ sorted_merge_iterator<SortedIterator>::sorted_merge_iterator()
 {}
 
 template <class SortedIterator>
-sorted_merge_iterator<SortedIterator>::sorted_merge_iterator(std::vector<standalone_iterator<SortedIterator>>& v)
+sorted_merge_iterator<SortedIterator>::sorted_merge_iterator(std::vector<standalone_iterator<SortedIterator>> v)
     : heap_idx_comparator( [this](uint32_t i, uint32_t j) { return (*iterators[i] > *iterators[j]);} )
 {
     uint32_t i = 0;
-    for (auto itr : v) {
+    for (auto&& itr : v) {
         if (itr.has_next()) { // filtering to remove empty iterators is needed to guarantee has_next() consistency 
-            iterators.push_back(itr);
+            iterators.push_back(std::move(itr));
             index_heap.push_back(i++);
         }
     }
