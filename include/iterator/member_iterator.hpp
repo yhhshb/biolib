@@ -2,7 +2,6 @@
 #define MEMBER_ITERATOR_HPP
 
 #include <type_traits>
-#include "constants.hpp"
 
 namespace iterators {
 
