@@ -37,10 +37,9 @@ int main(int argc, char* argv[])
     auto eprob = parser.get<double>("--extension-probability");
     auto seed =  parser.get<uint64_t>("--seed");
 
-    sequence::generator::packed::uniform nucleic2bitgen(seed);
-    sequence::generator::nucleic generator(nucleic2bitgen);
+    DNA::sequence::generator generator(seed);
     auto original = generator.get_sequence(seqlen);
-    wrapper::sequence_mutator mutated_view(original.begin(), original.end(), mrate, indel, eprob);
+    DNA::sequence::mutator mutated_view(original.begin(), original.end(), mrate, indel, eprob);
     std::string mutated;
     decltype(mutated_view)::const_iterator::report_t stats;
     for (auto itr = mutated_view.cbegin(seed); itr != mutated_view.cend(); ++itr) {

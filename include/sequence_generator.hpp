@@ -6,30 +6,14 @@
 
 #include "constants.hpp"
 
+namespace DNA {
 namespace sequence {
-namespace generator {
 
-namespace packed {
-
-class uniform
+class generator
 {
     public:
-        uniform(uint64_t seed) noexcept : engine(seed), dist(0,3) {}
-        uint8_t operator()() noexcept {return dist(engine);}
-
-    private:
-        std::mt19937 engine; // Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<uint8_t> dist;
-};
-
-} // namespace packed
-
-template <class Packed>
-class nucleic
-{
-    public:
-        nucleic(Packed& generator) noexcept : mgenerator(generator) {}
-        char get_char() noexcept {return constants::bases.at(mgenerator());}
+        generator(uint64_t seed) noexcept : engine(seed), dist(0,3) {}
+        char get_char() noexcept {return constants::bases.at(dist(engine));}
 
         std::string get_sequence(std::size_t len) noexcept
         {
@@ -39,10 +23,11 @@ class nucleic
         }
 
     private:
-        Packed& mgenerator;
+        std::mt19937 engine; // Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<uint8_t> dist;
 };
 
-} // namespace generator
 } // namespace sequence
+} // namespace DNA
 
 #endif // SEQUENCE_GENERATOR_HPP

@@ -4,13 +4,15 @@
 #include <random>
 #include <optional>
 #include <cassert>
+#include <array>
 
 #include "constants.hpp"
 
-namespace wrapper {
+namespace DNA {
+namespace sequence {
 
 template <class Iterator>
-class sequence_mutator
+class mutator
 {
     public:
         class const_iterator
@@ -19,7 +21,7 @@ class sequence_mutator
                 struct report_t {
                     std::size_t substitution_count, insertion_count, deletion_count;
                     long long total_indel_len;
-                    std::string cigar;
+                    std::string cigar; // TODO
                 };
 
                 using iterator_category = std::forward_iterator_tag;
@@ -30,14 +32,14 @@ class sequence_mutator
 
                 enum class mutation_t {SUBSTITUTION, INSERTION, DELETION, IDENTITY};
 
-                const_iterator(sequence_mutator const& mutator, Iterator const& start, uint64_t seed) noexcept;
+                const_iterator(mutator const& mutator, Iterator const& start, uint64_t seed) noexcept;
                 value_type operator*() const noexcept;
                 const_iterator const& operator++() noexcept;
                 const_iterator operator++(int) noexcept;
                 report_t get_report() const noexcept;
 
             private:
-                sequence_mutator const& parent_mutator;
+                mutator const& parent_mutator;
                 Iterator itr_start;
                 std::mt19937 engine; // Standard mersenne_twister_engine seeded with rd()
                 std::uniform_real_distribution<double> probability;
@@ -54,7 +56,13 @@ class sequence_mutator
                 friend bool operator!=(const_iterator const& a, const_iterator const& b) {return not (a == b);};
         };
 
-        sequence_mutator(Iterator const& start, Iterator const& stop, double mutation_rate, double indel_fraction, double extension_probability);
+        mutator(
+            Iterator const& start, 
+            Iterator const& stop, 
+            double mutation_rate, 
+            double indel_fraction, 
+            double extension_probability
+        );
         const_iterator cbegin(uint64_t seed) const noexcept;
         const_iterator cend() const noexcept;
         const_iterator begin(uint64_t seed) const noexcept {return cbegin(seed);};
@@ -68,7 +76,7 @@ class sequence_mutator
             Iterator const itr_stop;
             double mutp, indelf, extp;
 
-            friend bool operator==(sequence_mutator const& a, sequence_mutator const& b)
+            friend bool operator==(mutator const& a, mutator const& b)
             {
                 bool same_range = (a.itr_start == b.itr_start and a.itr_stop == b.itr_stop);
                 bool same_mutp = (a.mutp == b.mutp);
@@ -76,38 +84,38 @@ class sequence_mutator
                 bool same_extp = (a.extp == b.extp);
                 return same_range and same_mutp and same_indelf and same_extp;
             };
-            friend bool operator!=(sequence_mutator const& a, sequence_mutator const& b) {return not (a == b);};
+            friend bool operator!=(mutator const& a, mutator const& b) {return not (a == b);};
 };
 
 template <typename Iterator>
-sequence_mutator<Iterator>::sequence_mutator(Iterator const& start, Iterator const& stop, double mutation_rate, double indel_fraction, double extension_probability) 
+mutator<Iterator>::mutator(Iterator const& start, Iterator const& stop, double mutation_rate, double indel_fraction, double extension_probability) 
     : itr_start(start), 
       itr_stop(stop), 
       mutp(mutation_rate), 
       indelf(indel_fraction), 
       extp(extension_probability) 
 {
-    if (mutp < 0 or mutp > 1) throw std::invalid_argument("[sequence_mutator] invalid mutation probability");
-    if (indelf < 0 or indelf > 1) throw std::invalid_argument("[sequence_mutator] invalid indel fraction");
-    if (extp < 0 or extp > 1) throw std::invalid_argument("[sequence_mutator] invalid extension probability");
+    if (mutp < 0 or mutp > 1) throw std::invalid_argument("[mutator] invalid mutation probability");
+    if (indelf < 0 or indelf > 1) throw std::invalid_argument("[mutator] invalid indel fraction");
+    if (extp < 0 or extp > 1) throw std::invalid_argument("[mutator] invalid extension probability");
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator 
-sequence_mutator<Iterator>::cbegin(uint64_t seed) const noexcept
+typename mutator<Iterator>::const_iterator 
+mutator<Iterator>::cbegin(uint64_t seed) const noexcept
 {
     return const_iterator(*this, itr_start, seed);
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator 
-sequence_mutator<Iterator>::cend() const noexcept
+typename mutator<Iterator>::const_iterator 
+mutator<Iterator>::cend() const noexcept
 {
     return const_iterator(*this, itr_stop, 0);
 }
 
 template <class Iterator>
-sequence_mutator<Iterator>::const_iterator::const_iterator(sequence_mutator const& mutator, Iterator const& start, uint64_t seed) noexcept
+mutator<Iterator>::const_iterator::const_iterator(mutator const& mutator, Iterator const& start, uint64_t seed) noexcept
     : parent_mutator(mutator), 
       itr_start(start), 
       mtype(mutation_t::IDENTITY), 
@@ -122,15 +130,15 @@ sequence_mutator<Iterator>::const_iterator::const_iterator(sequence_mutator cons
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator::value_type 
-sequence_mutator<Iterator>::const_iterator::operator*() const noexcept
+typename mutator<Iterator>::const_iterator::value_type 
+mutator<Iterator>::const_iterator::operator*() const noexcept
 {
     return outval;
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator const& 
-sequence_mutator<Iterator>::const_iterator::operator++() noexcept
+typename mutator<Iterator>::const_iterator const& 
+mutator<Iterator>::const_iterator::operator++() noexcept
 {
     if (indel_len == 0) {
         char base = *itr_start++;
@@ -169,8 +177,8 @@ sequence_mutator<Iterator>::const_iterator::operator++() noexcept
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator 
-sequence_mutator<Iterator>::const_iterator::operator++(int) noexcept
+typename mutator<Iterator>::const_iterator 
+mutator<Iterator>::const_iterator::operator++(int) noexcept
 {
     auto current = *this;
     operator++();
@@ -178,12 +186,13 @@ sequence_mutator<Iterator>::const_iterator::operator++(int) noexcept
 }
 
 template <class Iterator>
-typename sequence_mutator<Iterator>::const_iterator::report_t 
-sequence_mutator<Iterator>::const_iterator::get_report() const noexcept
+typename mutator<Iterator>::const_iterator::report_t 
+mutator<Iterator>::const_iterator::get_report() const noexcept
 {
     return report;
 }
 
-} // namespace wrapper
+} // namespace sequence
+} // namespace DNA
 
 #endif // SEQUENCE_MUTATOR_HPP
