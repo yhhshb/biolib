@@ -118,6 +118,7 @@ timer<ClockType, MeasurementType>::timer()
 {
     measurements.resize(1);
     measurements.shrink_to_fit();
+    for (auto& v : measurements) v = 0;
 }
 
 template <class ClockType, typename MeasurementType>
@@ -126,6 +127,7 @@ timer<ClockType, MeasurementType>::timer(std::size_t queue_size)
 {
     measurements.resize(queue_size);
     measurements.shrink_to_fit();
+    for (auto& v : measurements) v = 0;
 }
 
 template <class ClockType, typename MeasurementType>
