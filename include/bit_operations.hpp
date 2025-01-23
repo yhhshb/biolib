@@ -35,7 +35,7 @@ uint8_t
 #endif
 max_width_native_type;
 
-static const std::array<uint8_t, 256> popvalues = {
+const std::array<uint8_t, 256> popvalues = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
     1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
     1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
@@ -61,6 +61,27 @@ template <typename T>
 inline constexpr std::size_t size([[maybe_unused]] T x)
 {
     return 8 * sizeof(T);
+}
+
+template <typename T>
+T round_up(T numToRound, T multiple) 
+{
+    assert(multiple);
+    int isPositive = (int)(numToRound >= 0);
+    return ((numToRound + isPositive * (multiple - 1)) / multiple) * multiple;
+}
+
+inline std::size_t round_up(std::size_t numToRound, std::size_t multiple) 
+{
+    assert(multiple);
+    return ((numToRound + multiple - 1) / multiple) * multiple;
+}
+
+template <typename T>
+T round_up2(T numToRound, T multiple) 
+{
+    assert(multiple && ((multiple & (multiple - 1)) == 0));
+    return (numToRound + multiple - 1) & -multiple;
 }
 
 /*
