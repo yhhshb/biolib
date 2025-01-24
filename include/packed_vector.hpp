@@ -7,11 +7,11 @@
 #include "bit_operations.hpp"
 #include "logtools.hpp"
 
-#define CLASS_HEADER template <typename UnderlyingType>
-#define METHOD_HEADER vector<UnderlyingType>
-
 namespace bit {
 namespace packed {
+
+#define CLASS_HEADER template <typename UnderlyingType>
+#define METHOD_HEADER vector<UnderlyingType>
 
 template <typename UnderlyingType = max_width_native_type>
 class vector
@@ -81,10 +81,6 @@ class vector
         void resize(std::size_t size);
         void clear() noexcept;
         void swap(vector& other) noexcept;
-
-        // void shift(long long shift);
-        // void shift_right(std::size_t shift);
-        // void shift_left(std::size_t shift);
 
         template <class Visitor>
         void visit(Visitor& visitor) const;
