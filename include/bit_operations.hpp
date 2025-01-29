@@ -102,6 +102,7 @@ static inline std::size_t lsbll(T x)
 template <typename T>
 static inline std::size_t msbll(T x)
 {
+    static_assert(std::is_unsigned<T>::value);
     assert(x > 0);
     return ::bit::size(x) - 1 - __builtin_clzll(x);  // count leading zeros (clz)
 }
