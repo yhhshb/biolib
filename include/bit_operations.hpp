@@ -90,17 +90,19 @@ T round_up2(T numToRound, T multiple)
 */
 
 /* position of the least significant bit (lsb) */
-static inline std::size_t lsbll(unsigned long long x)
+template <typename T>
+static inline std::size_t lsbll(T x)
 {
+    static_assert(std::is_unsigned<T>::value);
     assert(x > 0);              // if x is 0, the result is undefined
-    return __builtin_ctzll(x);  // count trailing zeros (ctz)
+    return static_cast<std::size_t>(__builtin_ctzll(static_cast<unsigned long long>(x)));  // count trailing zeros (ctz)
 }
 
 /* position of the most significant bit (msb) */
 template <typename T>
 static inline std::size_t msbll(T x)
 {
-    assert(x);
+    assert(x > 0);
     return ::bit::size(x) - 1 - __builtin_clzll(x);  // count leading zeros (clz)
 }
 
