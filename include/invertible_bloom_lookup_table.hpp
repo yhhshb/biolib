@@ -3,11 +3,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cmath>
 #include <string>
 #include <unordered_set>
 #include <ostream>
 #include "bit_operations.hpp"
 #include "hash.hpp"
+
+#include "../bundled/prettyprint.hpp"
 
 namespace bloom {
 
@@ -29,7 +32,7 @@ class invertible_lookup_table
             std::vector<UnderlyingType> key;
             LengthType bit_len;
             bool sign;
-            friend bool operator==(record_t const& a, record_t const& b) {return a.key == b.key and a.bit_len == b.bit_len and a.sign == b.sign;}
+            friend bool operator==(record_t const& a, record_t const& b) {return a.key == b.key and a.bit_len == b.bit_len;} // and a.sign == b.sign;}
             friend bool operator!=(record_t const& a, record_t const& b) {return not (a == b);}
         };
 
@@ -41,9 +44,11 @@ class invertible_lookup_table
             uint64_t seed
         );
         invertible_lookup_table (invertible_lookup_table const&) = default;
+        std::vector<UnderlyingType> get_key_buffer() const;
         void insert(std::vector<UnderlyingType> const& key, std::size_t bit_len) {modify(key, bit_len, true);}
         void remove(std::vector<UnderlyingType> const& key, std::size_t bit_len) {modify(key, bit_len, false);}
-        void clear() {for (std::size_t i = 0; i < buckets.size(); ++i) buckets[i] = 0;}
+        void clear() noexcept;
+        bool empty() const noexcept;
         std::pair<std::vector<record_t>, constants::peel_status_t> peel();
         std::size_t size() const noexcept {return nbuckets;}
         invertible_lookup_table& operator-=(invertible_lookup_table const& other);
@@ -52,8 +57,11 @@ class invertible_lookup_table
         template <class Visitor> void visit(Visitor& visitor) const;
         template <class Visitor> invertible_lookup_table load(Visitor& visitor);
 
+        std::vector<std::size_t> payload_to_bucket_indexes(UnderlyingType const * const key) const noexcept;
+        std::vector<std::size_t> bucket_idx_to_bucket_indexes(const std::size_t bucket_idx) const noexcept;
+
     private:
-        struct record_hash_t { // hash function for record_t which only depends on "key" fields
+        struct record_hash_t { // hash function for record_t which only depends on "key" field
             std::size_t operator()(const record_t& record) const {
                 return hash::hash64::hash(
                     reinterpret_cast<uint8_t const*>(record.key.data()), 
@@ -107,6 +115,16 @@ class invertible_lookup_table
             return toret;
         }
 
+        friend bool operator==(invertible_lookup_table const& a, invertible_lookup_table const& b)
+        {
+            if (not a.is_compatible(b)) return false;
+            for (std::size_t i = 0; i < a.buckets.size(); ++i) {
+                if (a.buckets.at(i) != b.buckets.at(i)) return false;
+            }
+            return true;
+        }
+        friend bool operator!=(invertible_lookup_table const& a, invertible_lookup_table const& b) {return not a == b;}
+
         LengthType pld_bit_size;
         uint8_t nreps;
         std::size_t mseed;
@@ -127,12 +145,29 @@ METHOD_HEADER::invertible_lookup_table(
     static_assert(std::is_signed<CounterType>::value, "Counter type must be a signed integer type");
     static_assert(std::is_unsigned<LengthType>::value, "Length type must be an unsigned integer type");
     if (nreps < 3 or nreps >= constants::ilt_scaling_table.size()) throw std::invalid_argument("number of hash functions must be in [3, 7]");
-    nbuckets = static_cast<std::size_t>(expected_number_of_differences * (constants::ilt_scaling_table[nreps] + static_cast<double>(epsilon)));
+    nbuckets = static_cast<std::size_t>(std::ceil(expected_number_of_differences * (constants::ilt_scaling_table[nreps] + static_cast<double>(epsilon))));
     std::size_t counter_byte_size = sizeof(CounterType);
     std::size_t length_byte_size = sizeof(LengthType);
     std::size_t payload_byte_size = bit::round_up2(static_cast<std::size_t>(pld_bit_size), bit::size<UnderlyingType>()) / bit::size<uint8_t>();
     bucket_byte_size = counter_byte_size + length_byte_size + payload_byte_size;
     init();
+}
+
+CLASS_HEADER
+void 
+METHOD_HEADER::clear() noexcept
+{
+    for (std::size_t i = 0; i < buckets.size(); ++i) buckets[i] = 0;
+}
+
+CLASS_HEADER
+bool 
+METHOD_HEADER::empty() const noexcept
+{
+    for (std::size_t i = 0; i < buckets.size(); ++i) {
+        if (buckets[i] != 0) return false;
+    }
+    return true;
 }
 
 CLASS_HEADER
@@ -145,9 +180,11 @@ METHOD_HEADER::peel()
     for (std::size_t i = 0; i < nbuckets; ++i) {
         if (looks_pure(i, other_idxs)) peelable_indexes.push_back(i);
     }
-    
+    // std::cerr << *this << "\n";
+    // std::cerr << "Starting points: " << peelable_indexes << "\n";
     std::unordered_set<record_t, record_hash_t> results;
     std::vector<std::size_t> next_peelable_indexes;
+    std::vector<std::size_t> dummy;
     record_t record;
     const std::size_t payload_ut_len = payload_len_as_number_of_underlying_type_integers();
     record.key.resize(payload_ut_len);
@@ -156,13 +193,15 @@ METHOD_HEADER::peel()
     while (not peelable_indexes.empty() and nmax_count != MAX_CYCLE_COUNT) {
         next_peelable_indexes.clear();
         for (auto bucket_idx : peelable_indexes) {
+            // std::cerr << *this << "\n";
+            // std::cerr << "\tlooking at bucket idx: " << bucket_idx << "\n";
             if (looks_pure(bucket_idx, other_idxs)) {
                 auto bucket = bucket_idx_to_bucket_view(bucket_idx);
                 record.bit_len = *bucket.length_sum;
-                for (std::size_t i = 0; i < payload_ut_len; ++i) {
+                for (std::size_t i = 0; i < payload_ut_len; ++i) { // extract payload
                     record.key[i] = bucket.payload_start[i];
                 }
-                if (*bucket.counter == 1) {
+                if (*bucket.counter == 1) { // update buckets
                     remove(record.key, record.bit_len);
                     record.sign = true;
                 } else if (*bucket.counter == -1) {
@@ -171,6 +210,8 @@ METHOD_HEADER::peel()
                 } else {
                     assert(false);
                 }
+                // std::vector<std::size_t> printable_key(record.key.cbegin(), record.key.cend());
+                // std::cerr << "\t>>> Extracted key: " << (record.sign ? "+" : "-") << printable_key << "\n";
                 { // add or remove from output
                     auto itr = results.find(record);
                     if (itr != results.end()) results.erase(itr);
@@ -182,22 +223,22 @@ METHOD_HEADER::peel()
                         ++nmax_count;
                     }
                 }
+                // std::cerr << "\tOther indexes: " << other_idxs << "\n";
                 for (auto idx : other_idxs) {
-                    std::vector<std::size_t> dummy;
                     if (looks_pure(idx, dummy)) {
                         next_peelable_indexes.push_back(idx);
                     }
                 }
             }
         }
+        // std::cerr << "next peelable indexes: " << next_peelable_indexes << "\n\n";
+        // peelable_indexes.clear();
+        // for (auto ritr = next_peelable_indexes.crbegin(); ritr != next_peelable_indexes.crend(); ++ritr) peelable_indexes.push_back(*ritr);
         peelable_indexes = next_peelable_indexes;
     }
     constants::peel_status_t status = constants::PEELED;
     if (nmax_count == MAX_CYCLE_COUNT) status = constants::INFINITE;
-    else {
-        for (std::size_t i = 0; i < buckets.size()and status == constants::PEELED; ++i) 
-            if (buckets.at(i) != 0) status = constants::UNPEELABLE;
-    }
+    else if (not empty()) status = constants::UNPEELABLE;
     std::vector<record_t> toret(results.begin(), results.end());
     return std::make_pair(toret, status);
 }
@@ -256,6 +297,29 @@ METHOD_HEADER::load(Visitor& visitor) {
 }
 
 CLASS_HEADER
+std::vector<std::size_t> 
+METHOD_HEADER::payload_to_bucket_indexes(UnderlyingType const * const payload) const noexcept
+{
+    const std::size_t payload_ut_len = payload_len_as_number_of_underlying_type_integers();
+    auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(payload), payload_ut_len * sizeof(UnderlyingType), mseed);
+    std::vector<std::size_t> toret;
+    for (std::size_t i = 0; i < nreps; ++i) toret.push_back(hash::hash64::hash(master_hash, i) % nbuckets);
+    return toret;
+}
+
+CLASS_HEADER
+std::vector<std::size_t> 
+METHOD_HEADER::bucket_idx_to_bucket_indexes(const std::size_t bucket_idx) const noexcept
+{
+    const auto payload_ut_len = payload_len_as_number_of_underlying_type_integers();
+    auto bucket = bucket_idx_to_bucket_view(bucket_idx);
+    auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(bucket.payload_start), payload_ut_len * sizeof(UnderlyingType), mseed);
+    std::vector<std::size_t> toret;
+    for (std::size_t i = 0; i < nreps; ++i) toret.push_back(hash::hash64::hash(master_hash, i) % nbuckets);
+    return toret;
+}
+
+CLASS_HEADER
 void 
 METHOD_HEADER::init()
 {
@@ -264,20 +328,28 @@ METHOD_HEADER::init()
 }
 
 CLASS_HEADER
+std::vector<UnderlyingType> 
+METHOD_HEADER::get_key_buffer() const
+{
+    const std::size_t payload_ut_len = payload_len_as_number_of_underlying_type_integers();
+    return std::vector<UnderlyingType>(payload_ut_len);
+}
+
+CLASS_HEADER
 void 
 METHOD_HEADER::modify(std::vector<UnderlyingType> const& key, LengthType bit_len, bool addition)
 {
     if (bit_len > pld_bit_size) throw std::invalid_argument("key's bit length (" + std::to_string(bit_len) + ") greater than allowed maximum (" + std::to_string(pld_bit_size) + ")");
     const std::size_t payload_ut_len = payload_len_as_number_of_underlying_type_integers();
-    if (key.size() != payload_ut_len) throw std::runtime_error("key must be stored as an array of " + std::to_string(payload_ut_len) + " UnderlyingType integers");
-    auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(key.data()), payload_ut_len * sizeof(UnderlyingType), mseed);
-    for (std::size_t i = 0; i < nreps; ++i) {
-        auto bucket_idx = hash::hash64::hash(master_hash, i) % nbuckets;
+    if (key.size() != payload_ut_len) throw std::runtime_error("key must be of fixed size " + std::to_string(payload_ut_len));
+
+    auto bucket_indexes = payload_to_bucket_indexes(key.data());
+    for (auto bucket_idx : bucket_indexes) {
         auto bucket = bucket_idx_to_bucket_view(bucket_idx);
         if (addition) ++(*bucket.counter);
         else --(*bucket.counter);
         *bucket.length_sum ^= bit_len;
-        aligned_xor(bucket.payload_start, key.data(), payload_ut_len);
+        aligned_xor(bucket.payload_start, key.data(), key.size());
     }
 }
 
@@ -309,15 +381,12 @@ bool
 METHOD_HEADER::looks_pure(std::size_t bucket_idx, std::vector<std::size_t>& other_idxs) const
 {
     auto bucket = bucket_idx_to_bucket_view(bucket_idx);
-    const std::size_t payload_ut_len = payload_len_as_number_of_underlying_type_integers();
-    auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(bucket.payload_start), payload_ut_len * sizeof(UnderlyingType), mseed);
+    auto checks = payload_to_bucket_indexes(bucket.payload_start);
     other_idxs.clear();
     bool ok = false;
-    for (std::size_t i = 0; i < nreps; ++i) {
-        auto check = hash::hash64::hash(master_hash, i) % nbuckets;
+    for (auto check : checks) {
         if (bucket_idx == check) {
-            auto bucket = bucket_idx_to_bucket_view(bucket_idx);
-            if (*bucket.counter == 1 or *bucket.counter == -1) ok = true;
+            if (((*bucket.counter == 1) or (*bucket.counter == -1)) and *bucket.length_sum <= pld_bit_size) ok = true;
         } else {
             other_idxs.push_back(check);
         }
@@ -356,141 +425,3 @@ METHOD_HEADER::visit(Visitor& visitor)
 } // namespace bloom
 
 #endif // INVERTIBLE_BLOOM_LOOKUP_TABLE_HPP
-
-//----------------------------------------------------------------------------------------------------------
-
-// CLASS_HEADER
-// std::vector<typename METHOD_HEADER::record_t> 
-// METHOD_HEADER::peel()
-// {
-//     std::array<std::size_t, (static_cast<std::size_t>(1) << bit::size<decltype(nreps)>())> npi; // new peelable indexes
-//     std::size_t npi_size = 0;
-//     std::set<std::size_t> peelable_indexes;
-//     std::set<std::size_t> done;
-//     for (std::size_t i = 0; i < size(); ++i) if (counters[i] == 1 or counters[i] == -1) peelable_indexes.insert(i);
-//     std::vector<record_t> results;
-//     while (peelable_indexes.size() > 0) { // no max passes threshold, we want to do better than 2 years ago
-//         std::size_t bucket_idx;
-//         {
-//             auto itr = peelable_indexes.cbegin();
-//             bucket_idx = *itr;
-//             peelable_indexes.erase(itr);
-//         }
-//         get_at(bucket_idx); // now buffer contains the contents of the bucket
-//         bool ok = false;
-//         {
-//             auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(buffer.data()), bit::round_up2(static_cast<std::size_t>(pld_bit_size), bit::size<UnderlyingType>()), mseed);
-//             for (std::size_t i = 0; i < nreps; ++i) {
-//                 auto check = hash::hash64::hash(master_hash, i) % chunk_size + i * chunk_size;
-//                 if (bucket_idx == check) ok = true;
-//                 npi[npi_size++] = check;
-//             }
-//         }
-//         if (ok) {
-//             done.insert(bucket_idx);
-//             results.emplace_back(std::move(buffer), lengths.at(bucket_idx));
-//             for (std::size_t i = 0; i < npi_size; ++i) {
-//                 aligned_xor(npi[i], results.back().key.data(), results.back().key.size(), results.back().bit_len);
-//                 if (done.find(npi[i]) == done.end() and (counters[npi[i]] == 1 or counters[npi[i]] == -1)) {
-//                     peelable_indexes.insert(npi[i]);
-//                 }
-//             }
-//         }
-//     }
-//     return results;
-// }
-
-// CLASS_HEADER
-// std::pair<std::size_t, std::size_t> // index, shift 
-// METHOD_HEADER::bucket_idx_to_ut_idx(std::size_t bucket_idx) const noexcept
-// {
-//     auto bit_idx = bucket_idx * pld_bit_size;
-//     return std::make_pair(bit_idx / bit::size<UnderlyingType>(), bit_idx % bit::size<UnderlyingType>());
-// }
-
-/**
- * Retrieve a key from a bucket.
- * The resulting key is stored into buffer with its original alignment (right) preserved.  
- */
-// CLASS_HEADER
-// void 
-// METHOD_HEADER::get_at(std::size_t bucket_idx) 
-// {
-//     // copy contents of bucket into buffer by reconstructing its original alignment
-//     assert(counters.at(bucket_idx) == 1 or counters.at(bucket_idx) == -1);
-//     auto [ut_idx, carry_length] = bucket_idx_to_ut_idx(bucket_idx);
-//     const auto fitting_length = (bit::size<UnderlyingType>() - carry_length);
-//     const auto mask = (UnderlyingType(1) << fitting_length) - 1;
-//     buffer.clear();
-
-//     auto ut_end_idx = ut_idx + (pld_bit_size + carry_length) / bit::size<UnderlyingType>();
-//     for (std::size_t i = ut_idx; i < ut_end_idx; ++i) {
-//         buffer.push_back((buckets.at(i) & mask) | (buckets.at(i + 1) & ~mask));
-//     }
-//     auto back_shift = bit::round_up2<std::size_t>(pld_bit_size + carry_length, bit::size<UnderlyingType>()) - (pld_bit_size + carry_length);
-//     buffer.push_back(buckets.at(ut_end_idx) >> (bit::size<UnderlyingType>() - back_shift));
-// }
-
-// CLASS_HEADER
-// void 
-// METHOD_HEADER::modify(UnderlyingType const * const ptr, LengthType bit_len, bool addition)
-// {
-//     buffer.reserve(pld_bit_size / bit::size<UnderlyingType>() + 1);
-//     const auto ptr_ut_len = bit::round_up2(static_cast<std::size_t>(bit_len), bit::size<UnderlyingType>()) / sizeof(UnderlyingType);
-//     auto master_hash = hash::hash64::hash(reinterpret_cast<uint8_t const*>(ptr), ptr_ut_len, mseed);
-//     for (std::size_t i = 0; i < nreps; ++i) {
-//         auto bucket_idx = hash::hash64::hash(master_hash, i) % chunk_size + i * chunk_size;
-//         aligned_xor(bucket_idx, ptr, ptr_ut_len, bit_len);
-//         if (addition) ++counters[bucket_idx];
-//         else --counters[bucket_idx];
-//     }
-// }
-
-/**
- * ptr is a pointer to a sequence of Underlying type right-aligned:aligned
- * example with UnderlyingType = uint8_t and a value of 11 bits, numbers are bit indexes
- * [7 6 5 4 3 2 1 0], [* * * * * 10 9 8]
- */
-// CLASS_HEADER
-// void 
-// METHOD_HEADER::aligned_xor(std::size_t bucket_idx, UnderlyingType const * const ptr, std::size_t ptr_ut_len, LengthType bit_len)
-// {
-//     assert(bit_len <= pld_bit_size);
-//     auto [ut_idx, carry_length] = bucket_idx_to_ut_idx(bucket_idx);
-//     const auto fitting_length = (bit::size<UnderlyingType>() - carry_length);
-//     const auto mask = (UnderlyingType(1) << fitting_length) - 1;
-//     buffer.clear();
-
-//     UnderlyingType carry = 0;
-//     for (std::size_t i = 0; i < ptr_ut_len; ++i) { 
-//         buffer.push_back(carry | (ptr[i] & mask)); // this actually breaks input bit-order but it's faster to compute
-//         carry = ptr[i] & ~mask;
-//         bit_len -= fitting_length;
-//         if (i != 0) bit_len -= carry_length;
-//     }
-//     // the last carry needs special handling since its length is the number of remaining bits to be packed
-//     buffer.push_back(carry << (bit::size<UnderlyingType>() - bit_len));
-
-//     for (std::size_t i = 0; i < buffer.size(); ++i) { // TODO modify buckets in-place after debug (remove buffer usage)
-//         buckets[ut_idx] ^= buffer[i];
-//         ++ut_idx;
-//     }
-// }
-
-// CLASS_HEADER
-// std::optional<std::size_t> 
-// METHOD_HEADER::find_peelable_bucket(std::size_t bucket_idx) const noexcept // bucket_t const * const buckets, uint64_t blen, uint64_t * const last
-// {
-// 	auto start = bucket_idx;
-// 	bool empty = true;
-// 	for(;bucket_idx < size(); ++bucket_idx) {
-// 		if (counters[bucket_idx] == 1 or counters[bucket_idx] == -1) return bucket_idx;
-// 		else if (counters[bucket_idx] != 0) empty = false;
-// 	}
-// 	for(bucket_idx = 0; bucket_idx < start; ++bucket_idx) {
-// 		if (buckets[*last].counter == 1 || buckets[*last].counter == -1) return bucket_idx;
-// 		else if (counters[bucket_idx] != 0) empty = false;
-// 	}
-// 	if (empty) = return size();
-// 	return std::null_opt;
-// }
