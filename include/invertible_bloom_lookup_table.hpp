@@ -193,15 +193,15 @@ METHOD_HEADER::error_correcting_peel()
     std::size_t nmax_count = 0;
     while (not peelable_indexes.empty() and nmax_count != MAX_CYCLE_COUNT) {
         next_peelable_indexes.clear();
-        for (auto bucket_idx : peelable_indexes) {
+        for (auto bucket_idx : peelable_indexes) { // [PAPER] for i ∈ Q ...
             std::cerr << "\tlooking at bucket idx: " << bucket_idx << "\n";
-            if (looks_pure(bucket_idx, other_idxs)) {
-                auto bucket = bucket_idx_to_bucket_view(bucket_idx);
+            if (looks_pure(bucket_idx, other_idxs)) { // [PAPER] .. if looksPure(i) do
+                auto bucket = bucket_idx_to_bucket_view(bucket_idx); // [PAPER] x ← A[i] // detected key x
                 record.bit_len = *bucket.length_sum;
                 for (std::size_t i = 0; i < payload_ut_len; ++i) { // extract payload
                     record.key[i] = bucket.payload_start[i];
                 }
-                if (*bucket.counter == 1) { // update buckets
+                if (*bucket.counter == 1) { // update buckets [PAPER] toggle(x) // S ← S△{x}
                     remove(record.key, record.bit_len);
                     record.sign = true;
                 } else if (*bucket.counter == -1) {
@@ -212,7 +212,7 @@ METHOD_HEADER::error_correcting_peel()
                 }
                 std::vector<std::size_t> printable_key(record.key.cbegin(), record.key.cend());
                 std::cerr << "\t>>> Extracted key: " << (record.sign ? "+" : "-") << printable_key << "\n";
-                { // add or remove from output
+                { // add or remove from output [PAPER] Sdec ← Sdec△{x}
                     auto itr = results.find(record);
                     if (itr != results.end()) results.erase(itr);
                     else results.insert(record);
@@ -224,7 +224,7 @@ METHOD_HEADER::error_correcting_peel()
                     }
                 }
                 // std::cerr << "\tOther indexes: " << other_idxs << "\n";
-                for (auto idx : other_idxs) {
+                for (auto idx : other_idxs) { // [PAPER] Qnext ← Qnext ∪ {i ∈ h(x) | looksPure(i)}
                     if (looks_pure(idx, dummy)) {
                         next_peelable_indexes.push_back(idx);
                     }
