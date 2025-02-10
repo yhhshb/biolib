@@ -49,7 +49,7 @@ class invertible_lookup_table
         void remove(std::vector<UnderlyingType> const& key, std::size_t bit_len) {modify(key, bit_len, false);}
         void clear() noexcept;
         bool empty() const noexcept;
-        std::pair<std::vector<record_t>, constants::peel_status_t> peel();
+        std::pair<std::vector<record_t>, constants::peel_status_t> peel() {return error_correcting_peel();}
         std::size_t size() const noexcept {return nbuckets;}
         invertible_lookup_table& operator-=(invertible_lookup_table const& other);
         invertible_lookup_table generate_empty() const;
@@ -79,14 +79,15 @@ class invertible_lookup_table
 
         invertible_lookup_table() : pld_bit_size(0), mseed(0), nreps(0), nbuckets(0), bucket_byte_size(0) {};
         void init();
+        std::size_t payload_len_as_number_of_underlying_type_integers() const noexcept {return bit::round_up2(static_cast<std::size_t>(pld_bit_size), bit::size<UnderlyingType>()) / bit::size<UnderlyingType>();}
         void modify(std::vector<UnderlyingType> const& key, LengthType len, bool addition);
         void aligned_xor(UnderlyingType* const payload_start, UnderlyingType const * const ptr, std::size_t ut_len);
         bucket_view_t bucket_idx_to_bucket_view(std::size_t bucket_idx) const;
         bool looks_pure(std::size_t bucket_idx, std::vector<std::size_t>& other_idxs) const;
         bool is_compatible(invertible_lookup_table const& other) const noexcept;
-        std::size_t payload_len_as_number_of_underlying_type_integers() const noexcept {return bit::round_up2(static_cast<std::size_t>(pld_bit_size), bit::size<UnderlyingType>()) / bit::size<UnderlyingType>();}
+        std::pair<std::vector<record_t>, constants::peel_status_t> error_correcting_peel();
         template <class Visitor> void visit(Visitor& visitor);
-
+        
         friend std::ostream& operator<<(std::ostream& ostrm, invertible_lookup_table const& sketch)
         {
             const auto payload_ut_len = sketch.payload_len_as_number_of_underlying_type_integers();
@@ -172,7 +173,7 @@ METHOD_HEADER::empty() const noexcept
 
 CLASS_HEADER
 std::pair<std::vector<typename METHOD_HEADER::record_t>, constants::peel_status_t>
-METHOD_HEADER::peel()
+METHOD_HEADER::error_correcting_peel()
 {
     const std::size_t MAX_CYCLE_COUNT = 3;
     std::vector<std::size_t> other_idxs;
@@ -181,7 +182,7 @@ METHOD_HEADER::peel()
         if (looks_pure(i, other_idxs)) peelable_indexes.push_back(i);
     }
     // std::cerr << *this << "\n";
-    // std::cerr << "Starting points: " << peelable_indexes << "\n";
+    std::cerr << "Starting points: " << peelable_indexes << "\n";
     std::unordered_set<record_t, record_hash_t> results;
     std::vector<std::size_t> next_peelable_indexes;
     std::vector<std::size_t> dummy;
@@ -193,8 +194,7 @@ METHOD_HEADER::peel()
     while (not peelable_indexes.empty() and nmax_count != MAX_CYCLE_COUNT) {
         next_peelable_indexes.clear();
         for (auto bucket_idx : peelable_indexes) {
-            // std::cerr << *this << "\n";
-            // std::cerr << "\tlooking at bucket idx: " << bucket_idx << "\n";
+            std::cerr << "\tlooking at bucket idx: " << bucket_idx << "\n";
             if (looks_pure(bucket_idx, other_idxs)) {
                 auto bucket = bucket_idx_to_bucket_view(bucket_idx);
                 record.bit_len = *bucket.length_sum;
@@ -210,8 +210,8 @@ METHOD_HEADER::peel()
                 } else {
                     assert(false);
                 }
-                // std::vector<std::size_t> printable_key(record.key.cbegin(), record.key.cend());
-                // std::cerr << "\t>>> Extracted key: " << (record.sign ? "+" : "-") << printable_key << "\n";
+                std::vector<std::size_t> printable_key(record.key.cbegin(), record.key.cend());
+                std::cerr << "\t>>> Extracted key: " << (record.sign ? "+" : "-") << printable_key << "\n";
                 { // add or remove from output
                     auto itr = results.find(record);
                     if (itr != results.end()) results.erase(itr);
@@ -229,6 +229,7 @@ METHOD_HEADER::peel()
                         next_peelable_indexes.push_back(idx);
                     }
                 }
+                std::cerr << *this << "\n";
             }
         }
         // std::cerr << "next peelable indexes: " << next_peelable_indexes << "\n\n";

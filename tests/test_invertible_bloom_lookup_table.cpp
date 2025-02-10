@@ -32,15 +32,16 @@ void reconstruct_value(std::vector<UT> const& buffer, T& val)
  * Check if hash computed from key is equal to hash of bucket containing that key
  */
 template <typename CT, typename LT, typename UT>
-std::size_t hash_check(std::size_t differences, std::size_t equalities, float epsilon, std::size_t seed)
+std::size_t hash_check(std::size_t differences, std::size_t equalities, std::size_t nhashes, float epsilon, std::size_t seed)
 {
     const std::size_t total_elements = equalities + differences;
     const auto max_bit_size = bit::msbll(total_elements + differences) + 1;
+    std::cerr << "total elements: " << total_elements << ", max_bit_size: " << max_bit_size << "\n";
     bloom::invertible_lookup_table<CT, LT, UT> iblt(max_bit_size, 3, epsilon, 2*differences, seed);
     std::vector<UT> buffer = iblt.get_key_buffer();
     std::size_t hash_collisions_for_the_same_key = 0;
     {
-        for (auto itr = citr(0); itr != citr(total_elements); ++itr) {
+        for (auto itr = citr(1); itr != citr(total_elements + 1); ++itr) {
             load_buffer(buffer, *itr);
             auto bit_len = bit::msb(*itr).value_or(0) + 1;
             assert(iblt.empty());
@@ -51,7 +52,7 @@ std::size_t hash_check(std::size_t differences, std::size_t equalities, float ep
             if (std::adjacent_find(indexes_from_key.cbegin(), indexes_from_key.cend()) != indexes_from_key.cend()) {
                 ++hash_collisions_for_the_same_key;
             }
-            // std::cerr << "key indexes: " << indexes_from_key << "\n";
+            std::cerr << "key indexes: " << indexes_from_key << "\n";
             // for (auto idx : indexes_from_key) {
             //     auto indexes_from_bucket = iblt.bucket_idx_to_bucket_indexes(idx);
             //     std::sort(indexes_from_bucket.begin(), indexes_from_bucket.end());
@@ -69,11 +70,11 @@ template <typename CT, typename LT, typename UT>
 int simple_check(std::size_t differences, std::size_t equalities, std::size_t nhashes, float epsilon, std::size_t seed)
 {
     const std::size_t total_elements = equalities + differences;
-    const auto max_bit_size = bit::msbll(total_elements + differences) + 1;
+    const auto max_bit_size = bit::msbll(total_elements + differences + 1) + 1;
     bloom::invertible_lookup_table<CT, LT, UT> iblt(max_bit_size, nhashes, epsilon, 2 * differences, seed);
     std::vector<UT> buffer = iblt.get_key_buffer();
     {
-        for (auto itr = citr(0); itr != citr(total_elements); ++itr) {
+        for (auto itr = citr(1); itr != citr(total_elements + 1); ++itr) {
             load_buffer(buffer, *itr);
             iblt.insert(buffer, bit::msb(*itr).value_or(0) + 1);
         }
@@ -84,11 +85,11 @@ int simple_check(std::size_t differences, std::size_t equalities, std::size_t nh
     auto diff = iblt.generate_empty();
     {
         auto other = iblt.generate_empty();
-        for (auto itr = citr(total_elements); itr != citr(total_elements + differences); ++itr) {
+        for (auto itr = citr(total_elements + 1); itr != citr(total_elements + differences + 1); ++itr) {
             load_buffer(buffer, *itr);
             other.insert(buffer, bit::msbll(*itr) + 1);
         }
-        for (auto itr = citr(differences); itr != citr(total_elements); ++itr) {
+        for (auto itr = citr(differences + 1); itr != citr(total_elements + 1); ++itr) {
             load_buffer(buffer, *itr);
             other.insert(buffer, bit::msbll(*itr) + 1);
         }
@@ -99,11 +100,11 @@ int simple_check(std::size_t differences, std::size_t equalities, std::size_t nh
 
     auto diff_check = iblt.generate_empty();
     {
-        for (auto itr = citr(0); itr != citr(differences); ++itr) {
+        for (auto itr = citr(1); itr != citr(differences + 1); ++itr) {
             load_buffer(buffer, *itr);
             diff_check.insert(buffer, bit::msb(*itr).value_or(0) + 1);
         }
-        for (auto itr = citr(total_elements); itr != citr(total_elements + differences); ++itr) {
+        for (auto itr = citr(total_elements + 1); itr != citr(total_elements + differences + 1); ++itr) {
             load_buffer(buffer, *itr);
             diff_check.remove(buffer, bit::msbll(*itr) + 1);
         }
@@ -129,12 +130,13 @@ int simple_check(std::size_t differences, std::size_t equalities, std::size_t nh
         for (auto const& p : listing_inplace) {
             reconstruct_value(p.key, val);
             // std::cerr << "val = " << (p.sign ? "+" : "-") << val << " (" << "over " << static_cast<std::size_t>(p.bit_len) << " bit) \n";
-            assert(val < differences or ((total_elements <= val) and val < (total_elements + differences)));
+            assert(val != 0);
+            assert(val < differences + 1 or ((total_elements + 1 <= val) and val < (total_elements + differences + 1)));
             if (p.sign) {
-                positive_check.set(val);
+                positive_check.set(val - 1);
                 ++positive_size;
             } else {
-                negative_check.set(val - total_elements);
+                negative_check.set(val - total_elements - 1);
                 ++negative_size;
             }
         }
@@ -145,6 +147,19 @@ int simple_check(std::size_t differences, std::size_t equalities, std::size_t nh
         for (auto itr = negative_check.cbegin(); itr != negative_check.cend(); ++itr) {
             if (not *itr) throw std::runtime_error("Missing negaive output");
         }
+    } else {
+        std::cerr << iblt << "\n\n";
+        std::vector<std::size_t> listing_positive;
+        std::vector<std::size_t> listing_negative;
+        for (auto const& p : listing_inplace) {
+            reconstruct_value(p.key, val);
+            if (p.sign) listing_positive.push_back(val);
+            else listing_negative.push_back(val);
+        }
+        std::sort(listing_positive.begin(), listing_positive.end());
+        std::sort(listing_negative.begin(), listing_negative.end());
+        std::cerr << listing_positive << "\n";
+        std::cerr << listing_negative << "\n";
     }
     return status_inplace;
 }
@@ -189,20 +204,33 @@ int main(int argc, char* argv[])
     const float epsilon = parser.get<float>("--epsilon");
     const std::size_t trials = parser.get<std::size_t>("--trials");
 
-    std::size_t success = 0;
+    std::size_t peelable = 0;
+    std::size_t unpeelable = 0;
+    std::size_t infinite = 0;
     std::size_t errored = 0;
-    // simple_check<int8_t, uint8_t, uint8_t>(ndiffs, nmatches, number_of_hashes, epsilon, 94);
-    for (std::size_t i = 0; i < trials; ++i) {
-        // std::cerr << "hash collisions: " << hash_check<int8_t, uint8_t, uint8_t>(1000, 0, epsilon, i) << " | ";
-        try {
-            auto res = simple_check<int8_t, uint8_t, uint8_t>(ndiffs, nmatches, number_of_hashes, epsilon, i);
-            if (res == 0) ++success;
-        } catch (std::exception& e) {
-            std::cerr << "Caught exception: " << e.what() << "at when using seed: " << i << "\n"; 
-            ++errored;
-        }
-        // std::cerr << "\n";
-    }
-    std::cerr << "success: " << success - errored << "/" << trials << "\n";
+    simple_check<int8_t, uint8_t, uint8_t>(ndiffs, nmatches, number_of_hashes, epsilon, 0);
+    // for (std::size_t i = 0; i < trials; ++i) {
+    //     // auto collisions = hash_check<int8_t, uint8_t, uint8_t>(ndiffs, nmatches, number_of_hashes, epsilon, i);
+    //     // std::cerr << "hash collisions: " << collisions << "\n";
+    //     try {
+    //         auto res = simple_check<int8_t, uint8_t, uint8_t>(ndiffs, nmatches, number_of_hashes, epsilon, i);
+    //         if (res == bloom::constants::PEELED) {
+    //             ++peelable;
+    //         } else if (res == bloom::constants::UNPEELABLE) {
+    //             ++unpeelable;
+    //             std::cerr << "Unpeelable sketch for seed " << i << "\n";
+    //             break;
+    //         } else {
+    //             ++infinite;
+    //         }
+    //     } catch (std::exception& e) {
+    //         std::cerr << "Caught exception: " << e.what() << "at when using seed: " << i << "\n"; 
+    //         ++errored;
+    //     }
+    //     std::cerr << "\n";
+    // }
+    std::cerr << "peelable: " << peelable << "/" << trials << "\n";
+    std::cerr << "unpeelable: " << unpeelable << "/" << trials << "\n";
+    std::cerr << "infinite: " << infinite << "/" << trials << "\n";
     std::cerr << "errors: " << errored << "/" << trials << "\n";
 }
