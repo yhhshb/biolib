@@ -64,24 +64,24 @@ inline constexpr std::size_t size([[maybe_unused]] T x)
 }
 
 template <typename T>
-T round_up(T numToRound, T multiple) 
+T round_up(T x, T multiple) 
 {
     assert(multiple);
-    int isPositive = (int)(numToRound >= 0);
-    return ((numToRound + isPositive * (multiple - 1)) / multiple) * multiple;
+    int is_positive = (int)(x >= 0);
+    return ((x + is_positive * (multiple - 1)) / multiple) * multiple;
 }
 
-inline std::size_t round_up(std::size_t numToRound, std::size_t multiple) 
+inline std::size_t round_up(std::size_t x, std::size_t multiple) 
 {
     assert(multiple);
-    return ((numToRound + multiple - 1) / multiple) * multiple;
+    return ((x + multiple - 1) / multiple) * multiple;
 }
 
 template <typename T>
-T round_up2(T numToRound, T multiple) 
+T round_up2(T x, T multiple) 
 {
     assert(multiple && ((multiple & (multiple - 1)) == 0));
-    return (numToRound + multiple - 1) & -multiple;
+    return (x + multiple - 1) & -multiple;
 }
 
 /*
