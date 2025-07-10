@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <array>
 #include <string>
+#include <cassert>
 #include "constants.hpp"
 
 namespace wrapper {
