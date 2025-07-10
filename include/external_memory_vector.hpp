@@ -28,10 +28,6 @@ struct unsorted_base {};
 
 /**
  * Vector-like container off-loading elements to disk if necessary.
- * 
- * Its const_iterator is basically a combination of 
- * sorted_merge_iterator + disk_vector_iterator
- * but this is kept as a stand-alone implementation.
  */
 template <typename T, bool sorted = true>
 class external_memory_vector : public std::conditional<sorted, sorted_base<T>, unsorted_base<T>>::type 
@@ -358,17 +354,6 @@ external_memory_vector<T, sorted>::const_iterator::advance_heap_head()
     if (m_parsers.at(idx).has_next()) {}  // do nothing since next time the index will be still valid
     else m_idx_heap.pop_back();
 }
-
-/*
-template <typename T, bool sorted>
-void 
-external_memory_vector<T, sorted>::init(std::size_t available_space_bytes) 
-{
-    if (available_space_bytes / sizeof(T) == 0) throw std::runtime_error("[EMV] Insufficient memory");
-    m_buffer_size = available_space_bytes / sizeof(T) + 1;
-    m_buffer.reserve(m_buffer_size);
-}
-*/
 
 }  // namespace emem
 
